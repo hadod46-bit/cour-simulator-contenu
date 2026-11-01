@@ -1,0 +1,37 @@
+{
+ "version": 1793541480,
+ "libelle": "2026-11-01 13:58",
+ "coquilleMin": 2,
+ "fichiers": [
+  {
+   "chemin": "index.html",
+   "taille": 76930,
+   "sha256": "bc6d15370c1c30f695710d6b997b87d413200387f5a0c494d18db9c786f38d51"
+  },
+  {
+   "chemin": "moteur.js",
+   "taille": 8096,
+   "sha256": "8093f8ee0a9a9f45b1ba8cccd42d23143a84af68e95fcba46e361219f7bae425"
+  },
+  {
+   "chemin": "data/articles-1.js",
+   "taille": 7348636,
+   "sha256": "7689c70f37834a9521001cbfc18671760e43225c2eda80600f80957fb0dad91f"
+  },
+  {
+   "chemin": "data/articles-2.js",
+   "taille": 2610981,
+   "sha256": "6be2a361971f023fadac4d8dee42331dc7cc8e236cfb272c7cf7683aa1aea536"
+  },
+  {
+   "chemin": "data/cas.js",
+   "taille": 162662,
+   "sha256": "2cf2045aa447209fca6b859b7ca95151066b9d502cec0e3af3551f64922e1de2"
+  },
+  {
+   "chemin": "data/codes.js",
+   "taille": 71571,
+   "sha256": "7850c0dd2eb0d137903123a2cab34c7b9fb6e87c87c0c095ae4694261904ebf5"
+  }
+ ]
+}
