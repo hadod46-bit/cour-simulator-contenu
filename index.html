@@ -231,7 +231,7 @@ function chargerBase() {
   const statut = document.getElementById("baseStatus");
   statut.textContent = "Chargement des codes…";
   chargement = Moteur.charger(lireDonnees)
-    .then(() => { statut.textContent = `${Object.keys(BASE.codes).length} textes · ${BASE.arts.length.toLocaleString("fr-FR")} articles`; })
+    .then(() => { statut.textContent = `${Object.keys(BASE.codes).length} textes · ${BASE.arts.length.toLocaleString("fr-FR")} articles${BASE.decisions.length ? ` · ${BASE.decisions.length} décisions` : ""}`; })
     .catch(e => { statut.textContent = "Codes indisponibles"; throw e; });
   return chargement;
 }
@@ -327,7 +327,8 @@ Règles absolues :
 - Ne cite un article qu'après l'avoir lu avec lire_article (ou trouvé avec chercher_articles) : jamais de mémoire.
 - Les textes arabes font foi : lis-les en arabe, raisonne et écris en français.
 - N'invoque pas un texte signalé abrogé comme droit en vigueur (la loi 53-95 est remplacée par la loi 38-15, la loi 28-08 par la loi 66-23).
-- Les références s'écrivent {"code": "<clé>", "article": "<numéro>"}.`;
+- Les références s'écrivent {"code": "<clé>", "article": "<numéro>"}.
+- Si une décision de la base de jurisprudence éclaire la question (outils chercher_jurisprudence puis lire_decision), tu peux t'en servir et la citer dans les références sous la forme {"decision": "<ref>"}. N'invente jamais de décision ni de numéro d'arrêt.`;
 const cadre = () => CADRE.replace("{CATALOGUE}", catalogue());
 
 function resumeAudience() {
@@ -393,15 +394,21 @@ const messageErreur = e => MESSAGES_ERREUR[e?.code] || "Claude n'a pas pu répon
 /* --- Citations : vérifiées dans la base, cliquables --- */
 function puceCitations(citations = []) {
   const vues = new Set();
-  const items = (citations || []).filter(c => c && c.code && c.article).filter(c => { const k = normCode(c.code) + "|" + normArticle(c.article); if (vues.has(k)) return false; vues.add(k); return true; });
+  const cle = c => c.decision ? "D|" + String(c.decision).toUpperCase() : normCode(c.code) + "|" + normArticle(c.article);
+  const items = (citations || []).filter(c => c && (c.decision || (c.code && c.article))).filter(c => { const k = cle(c); if (vues.has(k)) return false; vues.add(k); return true; });
   if (!items.length || !BASE.index) return "";
   return `<div class="cites">${items.map(c => {
-    const a = trouverArticle(c.code, c.article), cle = normCode(c.code) || c.code;
-    return `<button class="cite ${a ? "ok" : "ko"}" data-code="${esc(cle)}" data-article="${esc(normArticle(c.article))}" title="${a ? "Lire l'article" : "Article introuvable dans la base"}">${esc(nomCourt(cle))} art. ${esc(normArticle(c.article))}</button>`;
+    if (c.decision) {
+      const d = BASE.trouverDecision(c.decision);
+      return `<button class="cite ${d ? "ok" : "ko"}" data-decision="${esc(d ? d.ref : c.decision)}" title="${d ? "Lire la décision" : "Décision introuvable dans la base"}">${d ? (d.juridiction === "Cour constitutionnelle" ? "Cour const." : esc(d.juridiction)) + " n° " + esc(d.numero) : esc(c.decision)}</button>`;
+    }
+    const a = trouverArticle(c.code, c.article), k = normCode(c.code) || c.code;
+    return `<button class="cite ${a ? "ok" : "ko"}" data-code="${esc(k)}" data-article="${esc(normArticle(c.article))}" title="${a ? "Lire l'article" : "Article introuvable dans la base"}">${esc(nomCourt(k))} art. ${esc(normArticle(c.article))}</button>`;
   }).join("")}</div>`;
 }
 document.addEventListener("click", e => {
   const b = e.target.closest(".cite[data-code]"); if (b) ouvrirArticle(b.dataset.code, b.dataset.article);
+  const d = e.target.closest(".cite[data-decision]"); if (d) ouvrirDecision(d.dataset.decision);
 });
 
 /* ============================================================
@@ -452,6 +459,11 @@ async function ouvrirCodes(requete = "") {
       res.innerHTML = Object.entries(groupes).map(([g, L]) => `<p class="eyebrow" style="margin-top:6px">${esc(g)} (${L.length})</p>` + L.map(([k, c]) => `
         <button class="res" data-cle="${k}"><span class="ref">${c.principal ? k : "Texte"}</span><span>${esc(c.titre)}</span>
         <span class="ext">${c.langue}${c.version ? " · version " + esc(c.version) : ""} · ${c.articles} articles ${c.statut && /abrog/i.test(c.statut) ? '<span class="badge abroge">abrogé</span>' : ""}</span></button>`).join("")).join("");
+      if (BASE.decisions.length) res.insertAdjacentHTML("afterbegin", `
+        <p class="eyebrow" style="margin-top:6px">Jurisprudence</p>
+        <button class="res" id="dJuris"><span class="ref">Décisions</span><span>${esc(Object.entries(BASE.decisions.reduce((o, d) => (o[d.juridiction] = (o[d.juridiction] || 0) + 1, o), {})).map(([j, n]) => `${j} : ${n} décisions`).join(" · "))}</span>
+        <span class="ext">Texte intégral en arabe, avec le dispositif.</span></button>`);
+      res.querySelector("#dJuris")?.addEventListener("click", listerDecisions);
       res.querySelectorAll("[data-cle]").forEach(b => b.onclick = () => lireCode(b.dataset.cle));
       return;
     }
@@ -463,6 +475,9 @@ async function ouvrirCodes(requete = "") {
         <span class="ref">${esc(nomCourt(a.cle))}${a.article ? " · art. " + esc(a.article) : " · p. " + a.page}${a.annexe ? " (annexe)" : ""}</span>
         <span class="ext" ${estArabe(a.texte) ? 'lang="ar" dir="rtl"' : ""}>${esc(a.texte.slice(0, 220))}…</span></button>`).join("")
       : `<p class="status">Aucun article trouvé. Essayez d'autres mots, ou la même idée en arabe.</p>`;
+    const decisions = BASE.rechercherDecisions(v, { max: 5 });
+    if (decisions.length) res.insertAdjacentHTML("beforeend", `<p class="eyebrow" style="margin-top:8px">Jurisprudence</p>` + decisions.map(blocDecision).join(""));
+    res.querySelectorAll("[data-decision]").forEach(b => b.onclick = () => ouvrirDecision(b.dataset.decision, v));
     res.querySelectorAll("[data-code]").forEach(b => b.onclick = () => ouvrirArticle(b.dataset.code, b.dataset.article, v));
   };
   let t; q.oninput = () => { clearTimeout(t); t = setTimeout(afficher, 180); };
@@ -493,6 +508,54 @@ async function ouvrirArticle(code, article, retour = null) {
   drawer.querySelector("#dPrev")?.addEventListener("click", () => ouvrirArticle(cle, prec.article, retour));
   drawer.querySelector("#dNext")?.addEventListener("click", () => ouvrirArticle(cle, suiv.article, retour));
   drawer.querySelector("#dCode")?.addEventListener("click", () => lireCode(cle, i));
+}
+
+// --- Jurisprudence ---
+const blocDecision = d => `
+  <button class="res" data-decision="${esc(d.ref)}">
+    <span class="ref">${esc(d.juridiction)} · n° ${esc(d.numero)}${d.date ? " · " + esc(d.date) : ""}</span>
+    <span class="ext" lang="ar" dir="rtl">${esc((d.objet || d.texte).slice(0, 200))}…</span></button>`;
+
+function listerDecisions() {
+  drawer.hidden = false; drawer.classList.remove("large");
+  drawer.innerHTML = `
+    <div class="row"><h2>Jurisprudence</h2><button class="ghost" id="dClose">Fermer</button></div>
+    <div style="display:grid;gap:6px">
+      <label for="djq" class="hint">Chercher dans les décisions (en arabe de préférence : « حرية التعبير », « قانون تنظيمي »)</label>
+      <input type="search" id="djq" placeholder="Mots-clés…">
+    </div>
+    <div class="results" id="djres"></div>`;
+  drawer.querySelector("#dClose").onclick = fermerDrawer;
+  const q = drawer.querySelector("#djq"), res = drawer.querySelector("#djres");
+  const afficher = () => {
+    const v = q.value.trim(), liste = v ? BASE.rechercherDecisions(v, { max: 30 }) : BASE.decisions;
+    res.innerHTML = (liste.length ? liste.map(blocDecision).join("") : `<p class="status">Aucune décision trouvée.</p>`)
+      + `<div class="row"><button class="ghost" id="djBack">Codes et lois</button></div>`;
+    res.querySelectorAll("[data-decision]").forEach(b => b.onclick = () => ouvrirDecision(b.dataset.decision, null, true));
+    res.querySelector("#djBack").onclick = () => ouvrirCodes();
+  };
+  let t; q.oninput = () => { clearTimeout(t); t = setTimeout(afficher, 180); };
+  afficher(); q.focus();
+}
+
+async function ouvrirDecision(ref, retour = null, depuisListe = false) {
+  drawer.hidden = false; drawer.classList.add("large");
+  try { await chargerBase(); } catch { return; }
+  const d = BASE.trouverDecision(ref);
+  drawer.innerHTML = `
+    <div class="row"><h2>${d ? `${esc(d.juridiction)} · décision n° ${esc(d.numero)}` : "Décision"}</h2><button class="ghost" id="dClose">Fermer</button></div>
+    <p class="hint" style="margin:0">${d ? `<span class="badge">${d.langue}</span> ${d.date ? esc(d.date) + " · " : ""}source : ${esc(d.source)}` : ""}</p>
+    <div class="results">
+      ${d ? `
+        ${d.dispositif ? `<p class="eyebrow">Dispositif</p><div class="art-full" lang="ar" dir="rtl">${esc(d.dispositif)}</div>` : ""}
+        <p class="eyebrow">Texte de la décision</p>
+        <div class="art-full" lang="ar" dir="rtl">${esc(d.texte)}</div>
+        <p class="hint">Texte extrait du PDF officiel ; la mise en page peut être imparfaite.</p>`
+        : `<p class="status err">Cette décision n'existe pas dans la base. La citation est peut-être inexacte.</p>`}
+      <div class="row"><button class="ghost" id="dBack">${depuisListe ? "Toutes les décisions" : "Rechercher dans les codes"}</button></div>
+    </div>`;
+  drawer.querySelector("#dClose").onclick = fermerDrawer;
+  drawer.querySelector("#dBack").onclick = () => depuisListe ? listerDecisions() : ouvrirCodes(retour || "");
 }
 
 // Lecteur d'un code entier : lecture continue (affichage par tranches au fil du défilement),

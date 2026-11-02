@@ -3,7 +3,7 @@
    - recherche, lecture d'un article, catalogue des codes ;
    - définit les deux outils donnés à Claude : chercher_articles et lire_article. */
 (function (racine) {
-  const M = { codes: null, arts: [], index: null, parRef: null };
+  const M = { codes: null, arts: [], index: null, parRef: null, decisions: [], indexJ: null };
 
   const STOP_FR = new Set("le la les de des du un une et en au aux a à par pour sur dans est sont ou que qui ne pas son sa ses ce cette ces il elle ils elles se leur leurs l d qu s n y être avoir été lorsque dont tout toute tous".split(" "));
   const STOP_AR = new Set("في من على إلى الى عن أن ان أو او التي الذي الذين هذا هذه ذلك تلك كل ما لا لم مع بين بعد قبل عند كان كانت يكون تكون هو هي".split(" "));
@@ -25,39 +25,63 @@
 
   const refCle = (cle, article, annexe) => `${cle}|${String(article ?? "").toLowerCase()}|${annexe ? 1 : 0}`;
 
+  // Index BM25 d'une liste de textes : jeton -> [n° document, fréquence, n° document, fréquence, …]
+  function construireIndex(textes) {
+    const idx = new Map(), longueurs = new Float32Array(textes.length);
+    textes.forEach((t, i) => {
+      const tf = new Map();
+      for (const j of jetons(t)) tf.set(j, (tf.get(j) || 0) + 1);
+      longueurs[i] = [...tf.values()].reduce((s, v) => s + v, 0);
+      for (const [j, f] of tf) { let l = idx.get(j); if (!l) idx.set(j, l = []); l.push(i, f); }
+    });
+    return { idx, longueurs, moy: (longueurs.reduce((s, v) => s + v, 0) / (longueurs.length || 1)) || 1 };
+  }
+  function chercherDans(index, n, requete, garder = () => true, max = 8) {
+    const { idx, longueurs, moy } = index, k1 = 1.4, b = 0.75;
+    const scores = new Map();
+    for (const j of new Set(jetons(requete))) {
+      const l = idx.get(j); if (!l) continue;
+      const df = l.length / 2, idf = Math.log(1 + (n - df + 0.5) / (df + 0.5));
+      for (let p = 0; p < l.length; p += 2) {
+        const i = l[p], f = l[p + 1];
+        if (!garder(i)) continue;
+        scores.set(i, (scores.get(i) || 0) + idf * f * (k1 + 1) / (f + k1 * (1 - b + b * longueurs[i] / moy)));
+      }
+    }
+    return [...scores].sort((x, y) => y[1] - x[1]).slice(0, max).map(([i]) => i);
+  }
+
   // lireJson(chemin) -> Promise<objet> : fetch dans le navigateur, fs dans Node.
   async function charger(lireJson) {
     const codes = await lireJson("data/codes.json");
     const lots = await Promise.all(Array.from({ length: codes.fichiers }, (_, i) => lireJson(`data/articles-${i + 1}.json`)));
     M.codes = codes.codes;
     M.arts = lots.flat().map(([cle, article, annexe, page, texte]) => ({ cle, article, annexe, page, texte }));
-    // Index BM25 : jeton -> [n° article, fréquence, n° article, fréquence, …]
-    const idx = new Map(), longueurs = new Float32Array(M.arts.length);
-    M.arts.forEach((a, i) => {
-      const tf = new Map();
-      for (const j of jetons(a.texte)) tf.set(j, (tf.get(j) || 0) + 1);
-      longueurs[i] = [...tf.values()].reduce((s, v) => s + v, 0);
-      for (const [j, f] of tf) { let l = idx.get(j); if (!l) idx.set(j, l = []); l.push(i, f); }
-    });
-    M.index = { idx, longueurs, moy: longueurs.reduce((s, v) => s + v, 0) / longueurs.length };
+    M.index = construireIndex(M.arts.map(a => a.texte));
     M.parRef = new Map(M.arts.map((a, i) => [refCle(a.cle, a.article, a.annexe), i]));
+    // Jurisprudence (facultative : la base de codes fonctionne sans).
+    try {
+      M.decisions = (await lireJson("data/jurisprudence.json")).decisions || [];
+      M.indexJ = construireIndex(M.decisions.map(d => `${d.objet}\n${d.dispositif}\n${d.texte.slice(0, 8000)}`));
+    } catch { M.decisions = []; M.indexJ = null; }
     return M;
   }
 
   function rechercher(requete, { code = null, max = 8 } = {}) {
-    const { idx, longueurs, moy } = M.index, N = M.arts.length, k1 = 1.4, b = 0.75;
-    const scores = new Map();
-    for (const j of new Set(jetons(requete))) {
-      const l = idx.get(j); if (!l) continue;
-      const df = l.length / 2, idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
-      for (let p = 0; p < l.length; p += 2) {
-        const i = l[p], f = l[p + 1];
-        if (code && M.arts[i].cle !== code) continue;
-        scores.set(i, (scores.get(i) || 0) + idf * f * (k1 + 1) / (f + k1 * (1 - b + b * longueurs[i] / moy)));
-      }
-    }
-    return [...scores].sort((x, y) => y[1] - x[1]).slice(0, max).map(([i]) => M.arts[i]);
+    return chercherDans(M.index, M.arts.length, requete, i => !code || M.arts[i].cle === code, max).map(i => M.arts[i]);
   }
+  function rechercherDecisions(requete, { max = 6 } = {}) {
+    return M.indexJ ? chercherDans(M.indexJ, M.decisions.length, requete, () => true, max).map(i => M.decisions[i]) : [];
+  }
+  function trouverDecision(ref) {
+    const r = String(ref || "").trim().toUpperCase().replace(/\s+/g, "");
+    return M.decisions.find(d => d.ref.toUpperCase() === r || d.ref.toUpperCase() === "CC-" + r || d.numero === r) || null;
+  }
+  const decrireJuridiction = () => {
+    const parJ = {};
+    for (const d of M.decisions) parJ[d.juridiction] = (parJ[d.juridiction] || 0) + 1;
+    return Object.entries(parJ).map(([j, n]) => `${n} décisions de la ${j}`).join(", ");
+  };
 
   function normCode(c) {
     if (!c) return null;
@@ -88,7 +112,8 @@
 
   function catalogue() {
     return Object.entries(M.codes).filter(([, v]) => v.principal)
-      .map(([k, v]) => `${k} : ${v.titre} [${v.langue}${v.version ? ", version " + v.version : ""}${v.statut && !/^en vigueur$/.test(v.statut) ? ", " + v.statut : ""}]`).join("\n");
+      .map(([k, v]) => `${k} : ${v.titre} [${v.langue}${v.version ? ", version " + v.version : ""}${v.statut && !/^en vigueur$/.test(v.statut) ? ", " + v.statut : ""}]`).join("\n")
+      + (M.decisions.length ? `\nJurisprudence (outil chercher_jurisprudence) : ${decrireJuridiction()}, textes en arabe.` : "");
   }
 
   // Outils au format { name, description, inputSchema, execute(input) } ; trace(message) signale la progression.
@@ -119,10 +144,33 @@
           return { code: cle, article: a.article, langue: c.langue, statut: c.statut || "", version: c.version || "", titre_texte: c.titre, texte: a.texte.slice(0, 3500) };
         },
       },
+      ...(!M.decisions.length ? [] : [
+        {
+          name: "chercher_jurisprudence",
+          description: "Recherche des décisions de justice marocaines dans la base de jurisprudence (textes en arabe). Renvoie jusqu'à 6 décisions {ref, juridiction, numero, date, objet, dispositif}. Interroge de préférence en arabe (ex. « حرية التعبير », « قانون تنظيمي »).",
+          inputSchema: { type: "object", properties: { requete: { type: "string", description: "mots-clés, en arabe de préférence" } }, required: ["requete"] },
+          execute: async ({ requete }) => {
+            trace(`recherche de jurisprudence « ${String(requete).slice(0, 60)} »`);
+            return rechercherDecisions(String(requete)).map(d => ({ ref: d.ref, juridiction: d.juridiction, chambre: d.chambre, numero: d.numero, date: d.date,
+              objet: d.objet.slice(0, 350), dispositif: d.dispositif.slice(0, 450) }));
+          },
+        },
+        {
+          name: "lire_decision",
+          description: "Lit le texte d'une décision de justice de la base : {ref, juridiction, numero, date, objet, dispositif, texte}. ref = référence renvoyée par chercher_jurisprudence (ex. « CC-97.19 »).",
+          inputSchema: { type: "object", properties: { ref: { type: "string" } }, required: ["ref"] },
+          execute: async ({ ref }) => {
+            trace(`lecture de la décision ${ref}`);
+            const d = trouverDecision(ref);
+            if (!d) throw new Error(`Décision « ${ref} » introuvable. Utilise chercher_jurisprudence pour obtenir une référence exacte.`);
+            return { ref: d.ref, juridiction: d.juridiction, numero: d.numero, date: d.date, objet: d.objet, dispositif: d.dispositif, texte: d.texte.slice(0, 6000) };
+          },
+        },
+      ]),
     ];
   }
 
-  Object.assign(M, { jetons, charger, rechercher, normCode, normArticle, trouverArticle, nomCourt, catalogue, outils });
+  Object.assign(M, { jetons, charger, rechercher, rechercherDecisions, trouverDecision, normCode, normArticle, trouverArticle, nomCourt, catalogue, outils });
   if (typeof module !== "undefined" && module.exports) module.exports = M;
   else racine.Moteur = M;
 })(typeof globalThis !== "undefined" ? globalThis : this);
