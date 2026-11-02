@@ -1,6 +1,6 @@
 {
- "version": 1793586539,
- "libelle": "2026-11-02 02:28",
+ "version": 1793587840,
+ "libelle": "2026-11-02 02:50",
  "coquilleMin": 2,
  "fichiers": [
   {
@@ -35,8 +35,8 @@
   },
   {
    "chemin": "data/jurisprudence.js",
-   "taille": 1177916,
-   "sha256": "d33da006d26585e3e2a3a6c9064c66ae39593abe2e3d1375915fb23e47e48ab9"
+   "taille": 1271948,
+   "sha256": "a68f177492a83ce982b7f39dc91988a93d861701db5029ab959d4fd1e305a6fb"
   }
  ]
 }
