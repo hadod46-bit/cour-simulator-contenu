@@ -961,9 +961,13 @@ async function enregistrerAudience(verdict, pct) {
   try { const l = JSON.parse(localStorage.getItem("cour-audiences") || "[]"); l.unshift(fiche); localStorage.setItem("cour-audiences", JSON.stringify(l.slice(0, 20))); } catch { /* stockage indisponible */ }
   try {
     if (IA.mode === "sample") {
-      const db = await window.claude?.use?.("db");
-      if (!db) return "local";
-      await db.collection("audiences").add(fiche);
+      // Un document par joueur (audiences/<id>) : lui seul et le propriétaire de la page le lisent.
+      const [db, user] = await Promise.all([window.claude?.use?.("db"), window.claude?.use?.("user")]);
+      const id = db && await user?.id?.();
+      if (!id) return "local";
+      const ref = db.doc("audiences/" + id), avant = await ref.get();
+      const liste = avant.exists && Array.isArray(avant.data().liste) ? avant.data().liste : [];
+      await ref.set({ liste: [fiche, ...liste].slice(0, 6), maj: fiche.cree });
       return "partage";
     }
     if (IA.mode === "serveur") {
