@@ -221,6 +221,7 @@ mark { background: var(--brass-soft); color: var(--ink); border-radius: 2px; pad
 .liste-cas .badge { vertical-align: 1px; margin-left: 4px; }
 .badge { font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
 .badge.abroge { color: var(--bad); border-color: var(--bad); }
+.badge.complexe { color: var(--brass); border-color: var(--brass); background: var(--brass-soft); }
 
 @media (max-width: 820px) {
   .court, .parcours { grid-template-columns: 1fr; }
@@ -701,7 +702,7 @@ const ICONES = {
 const PARCOURS = {
   ia: { titre: "Cas pratique IA", sous: "Décrivez l'affaire voulue : l'IA crée le dossier, plaide contre vous et vous juge.", ia: true },
   moncas: { titre: "Simuler mon cas", sous: "Exposez votre propre situation : l'audience s'ouvre sur vos faits.", ia: true },
-  hors: { titre: "Entraînement hors ligne", sous: "60 affaires corrigées dans toutes les matières, avec ou sans internet.", ia: false },
+  hors: { titre: "Entraînement hors ligne", sous: "70 affaires corrigées dans toutes les matières, dont 10 cas complexes, avec ou sans internet.", ia: false },
 };
 // Réglages conservés d'un écran à l'autre pendant la visite.
 const REGLAGES = { level: "facile", cote: "defense", matiere: "", filtre: "tous", recherche: "", caseId: null, enregistrer: true };
@@ -732,7 +733,7 @@ function renderAccueil() {
           <span class="carte-icone">${ICONES[k]}</span>
           <strong>${p.titre}</strong>
           <span class="carte-texte">${p.sous}</span>
-          <span class="carte-etat" id="etat-${k}">${p.ia ? "Vérification de l'IA…" : `${CASES.length || 60} affaires`}</span>
+          <span class="carte-etat" id="etat-${k}">${p.ia ? "Vérification de l'IA…" : `${CASES.length || 70} affaires`}</span>
         </button>`).join("")}
       </div>
       <div id="acces"></div>
@@ -895,7 +896,7 @@ function formMonCas(f) {
 
 /* --- Parcours 3 : affaires corrigées, hors ligne --- */
 const normRecherche = s => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-const texteCas = k => normRecherche([k.title, k.object, k.facts, k.you, k.court, NOMS_MATIERES[k.matiere],
+const texteCas = k => normRecherche([k.title, k.object, k.facts, k.you, k.court, NOMS_MATIERES[k.matiere], k.complexe ? "complexe" : "",
   ...k.rounds.flatMap(r => [r.name, r.adverse, ...r.articles.map(a => `${a.code} ${a.article} ${a.label}`)])].join(" "));
 
 function formHorsLigne(f) {
@@ -911,13 +912,14 @@ function formHorsLigne(f) {
     <div class="actions"><button class="primary" id="go">Ouvrir l'audience</button><span class="status" id="startStatus"></span></div>`;
   brancherReglages(f);
   const pick = val => f.querySelectorAll("[data-case]").forEach(x => x.setAttribute("aria-pressed", x.dataset.case === val));
-  const filtres = () => CASES.filter(k => REGLAGES.filtre === "tous" || k.matiere === REGLAGES.filtre);
+  const filtres = () => CASES.filter(k => REGLAGES.filtre === "tous" || k.matiere === REGLAGES.filtre || (REGLAGES.filtre === "complexe" && k.complexe));
   const remplir = () => {
     const liste = f.querySelector("#casListe");
     if (!CASES.length) { liste.innerHTML = `<p class="status err">Les affaires n'ont pas pu être chargées : vérifiez que le dossier « data » est à côté du fichier.</p>`; return; }
     f.querySelector("#casFiltres").innerHTML = Object.entries(NOMS_MATIERES).map(([k, l]) => {
       const n = k === "tous" ? CASES.length : CASES.filter(x => x.matiere === k).length;
-      return n ? `<button class="chip" type="button" data-filtre="${k}" aria-pressed="${k === REGLAGES.filtre}">${l} (${n})</button>` : ""; }).join("");
+      return n ? `<button class="chip" type="button" data-filtre="${k}" aria-pressed="${k === REGLAGES.filtre}">${l} (${n})</button>` : ""; }).join("")
+      + (CASES.some(k => k.complexe) ? `<button class="chip" type="button" data-filtre="complexe" aria-pressed="${REGLAGES.filtre === "complexe"}">Complexes (${CASES.filter(k => k.complexe).length})</button>` : "");
     f.querySelectorAll("[data-filtre]").forEach(b => b.onclick = () => { REGLAGES.filtre = b.dataset.filtre; remplir(); });
     // Tous les mots de la recherche doivent apparaître (titre, faits, plaidoiries, articles cités).
     const mots = normRecherche(REGLAGES.recherche).split(/\s+/).filter(Boolean);
@@ -926,7 +928,7 @@ function formHorsLigne(f) {
     f.querySelector("#casCompte").textContent = `${trouves.length} affaire${trouves.length > 1 ? "s" : ""}`;
     liste.innerHTML = trouves.length ? trouves.map(k => `
       <button class="opt" type="button" data-case="${k.id}" aria-pressed="${k.id === REGLAGES.caseId}">
-        <strong>${esc(k.title)} <span class="badge">${NOMS_MATIERES[k.matiere]}</span></strong><small>${esc(k.object)} Vous êtes : ${esc(k.you)}.</small></button>`).join("")
+        <strong>${esc(k.title)} <span class="badge">${NOMS_MATIERES[k.matiere]}</span>${k.complexe ? ' <span class="badge complexe">Complexe</span>' : ""}</strong><small>${esc(k.object)} Vous êtes : ${esc(k.you)}.</small></button>`).join("")
       : `<p class="status">Aucune affaire ne correspond. Essayez d'autres mots, ou une autre matière.</p>`;
     f.querySelectorAll("[data-case]").forEach(b => b.onclick = () => { REGLAGES.caseId = b.dataset.case; pick(REGLAGES.caseId); });
   };
