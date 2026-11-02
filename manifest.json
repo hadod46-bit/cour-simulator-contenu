@@ -1,17 +1,17 @@
 {
- "version": 1793584843,
- "libelle": "2026-11-02 02:00",
+ "version": 1793586539,
+ "libelle": "2026-11-02 02:28",
  "coquilleMin": 2,
  "fichiers": [
   {
    "chemin": "index.html",
-   "taille": 81811,
-   "sha256": "f06360d4484ec8527ce1c052f282634365445967640b1ef43783d7ba6b510629"
+   "taille": 83285,
+   "sha256": "890bf820eb39773f1ee6df1f70f89a66897a5c5c9a73b9b727416d8ca4a63f4c"
   },
   {
    "chemin": "moteur.js",
-   "taille": 11369,
-   "sha256": "ed8956baccf3b60d8a744182eb72ffb8c99f1a9c5c8d3b815c61890d4153f33b"
+   "taille": 12097,
+   "sha256": "5d27a517550b884b6016f2df4a481d4c149bd0d06367581e4ce394079f8b7605"
   },
   {
    "chemin": "data/articles-1.js",
@@ -35,8 +35,8 @@
   },
   {
    "chemin": "data/jurisprudence.js",
-   "taille": 956843,
-   "sha256": "aa34da4f658535f7381163b9e072df633277434863bbdfb2dd2e62b0b5b142b7"
+   "taille": 1177916,
+   "sha256": "d33da006d26585e3e2a3a6c9064c66ae39593abe2e3d1375915fb23e47e48ab9"
   }
  ]
 }

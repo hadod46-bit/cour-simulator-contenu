@@ -400,7 +400,7 @@ function puceCitations(citations = []) {
   return `<div class="cites">${items.map(c => {
     if (c.decision) {
       const d = BASE.trouverDecision(c.decision);
-      return `<button class="cite ${d ? "ok" : "ko"}" data-decision="${esc(d ? d.ref : c.decision)}" title="${d ? "Lire la décision" : "Décision introuvable dans la base"}">${d ? (d.juridiction === "Cour constitutionnelle" ? "Cour const." : esc(d.juridiction)) + " n° " + esc(d.numero) : esc(c.decision)}</button>`;
+      return `<button class="cite ${d ? "ok" : "ko"}" data-decision="${esc(d ? d.ref : c.decision)}" title="${d ? "Lire la décision" : "Décision introuvable dans la base"}">${d ? (d.juridiction === "Cour constitutionnelle" ? "Cour const." : "Cass.") + " n° " + esc(d.numero) + (/^\d{4}/.test(d.date) ? " (" + d.date.slice(0, 4) + ")" : "") : esc(c.decision)}</button>`;
     }
     const a = trouverArticle(c.code, c.article), k = normCode(c.code) || c.code;
     return `<button class="cite ${a ? "ok" : "ko"}" data-code="${esc(k)}" data-article="${esc(normArticle(c.article))}" title="${a ? "Lire l'article" : "Article introuvable dans la base"}">${esc(nomCourt(k))} art. ${esc(normArticle(c.article))}</button>`;
@@ -462,7 +462,7 @@ async function ouvrirCodes(requete = "") {
       if (BASE.decisions.length) res.insertAdjacentHTML("afterbegin", `
         <p class="eyebrow" style="margin-top:6px">Jurisprudence</p>
         <button class="res" id="dJuris"><span class="ref">Décisions</span><span>${esc(Object.entries(BASE.decisions.reduce((o, d) => (o[d.juridiction] = (o[d.juridiction] || 0) + 1, o), {})).map(([j, n]) => `${j} : ${n} décisions`).join(" · "))}</span>
-        <span class="ext">Texte intégral en arabe, avec le dispositif.</span></button>`);
+        <span class="ext">Cour de cassation : principe et solution (Juricaf) · Cour constitutionnelle : texte intégral en arabe.</span></button>`);
       res.querySelector("#dJuris")?.addEventListener("click", listerDecisions);
       res.querySelectorAll("[data-cle]").forEach(b => b.onclick = () => lireCode(b.dataset.cle));
       return;
@@ -511,17 +511,21 @@ async function ouvrirArticle(code, article, retour = null) {
 }
 
 // --- Jurisprudence ---
+const dateDecision = d => /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? new Date(d.date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : d.date;
+const nomDecision = d => `${d.juridiction}${d.chambre ? ", chambre " + d.chambre : ""} · n° ${d.numero}${d.date ? " · " + dateDecision(d) : ""}`;
+const attrLangue = d => d.langue === "AR" ? 'lang="ar" dir="rtl"' : "";
 const blocDecision = d => `
   <button class="res" data-decision="${esc(d.ref)}">
-    <span class="ref">${esc(d.juridiction)} · n° ${esc(d.numero)}${d.date ? " · " + esc(d.date) : ""}</span>
-    <span class="ext" lang="ar" dir="rtl">${esc((d.objet || d.texte).slice(0, 200))}…</span></button>`;
+    <span class="ref">${esc(nomDecision(d))}</span>
+    ${d.titre ? `<span>${esc(d.titre)}</span>` : ""}
+    <span class="ext" ${d.principe ? "" : attrLangue(d)}>${esc((d.principe || d.objet || d.texte).slice(0, 200))}…${d.sens ? ` <strong>${esc(d.sens)}</strong>` : ""}</span></button>`;
 
 function listerDecisions() {
   drawer.hidden = false; drawer.classList.remove("large");
   drawer.innerHTML = `
     <div class="row"><h2>Jurisprudence</h2><button class="ghost" id="dClose">Fermer</button></div>
     <div style="display:grid;gap:6px">
-      <label for="djq" class="hint">Chercher dans les décisions (en arabe de préférence : « حرية التعبير », « قانون تنظيمي »)</label>
+      <label for="djq" class="hint">Chercher dans les décisions : en français pour la Cour de cassation (« bail commercial », « licenciement »), en arabe pour la Cour constitutionnelle</label>
       <input type="search" id="djq" placeholder="Mots-clés…">
     </div>
     <div class="results" id="djres"></div>`;
@@ -542,15 +546,20 @@ async function ouvrirDecision(ref, retour = null, depuisListe = false) {
   drawer.hidden = false; drawer.classList.add("large");
   try { await chargerBase(); } catch { return; }
   const d = BASE.trouverDecision(ref);
+  const juricaf = d && /juricaf/i.test(d.source);
   drawer.innerHTML = `
     <div class="row"><h2>${d ? `${esc(d.juridiction)} · décision n° ${esc(d.numero)}` : "Décision"}</h2><button class="ghost" id="dClose">Fermer</button></div>
-    <p class="hint" style="margin:0">${d ? `<span class="badge">${d.langue}</span> ${d.date ? esc(d.date) + " · " : ""}source : ${esc(d.source)}` : ""}</p>
+    <p class="hint" style="margin:0">${d ? `<span class="badge">${d.langue}</span> ${d.chambre ? "Chambre " + esc(d.chambre) + " · " : ""}${d.date ? esc(dateDecision(d)) + " · " : ""}${d.dossier ? "dossier n° " + esc(d.dossier) + " · " : ""}source : ${esc(d.source)}` : ""}</p>
     <div class="results">
       ${d ? `
-        ${d.dispositif ? `<p class="eyebrow">Dispositif</p><div class="art-full" lang="ar" dir="rtl">${esc(d.dispositif)}</div>` : ""}
-        <p class="eyebrow">Texte de la décision</p>
-        <div class="art-full" lang="ar" dir="rtl">${esc(d.texte)}</div>
-        <p class="hint">Texte extrait du PDF officiel ; la mise en page peut être imparfaite.</p>`
+        ${d.titre ? `<h3 style="font-size:17px;margin:0">${esc(d.titre)}</h3>` : ""}
+        ${d.principe ? `<p class="eyebrow">Principe retenu par la Cour</p><div class="art-full">${esc(d.principe)}</div>` : ""}
+        ${d.sens ? `<p><span class="pill mid">${esc(d.sens)}</span></p>` : ""}
+        ${d.liens?.length ? `<p class="eyebrow">Articles appliqués</p>${puceCitations(d.liens)}` : ""}
+        ${d.dispositif && !d.principe ? `<p class="eyebrow">Dispositif</p><div class="art-full" ${attrLangue(d)}>${esc(d.dispositif)}</div>` : ""}
+        ${d.texteAr ? `<p class="eyebrow">Texte intégral en arabe</p><div class="art-full" lang="ar" dir="rtl">${esc(d.texteAr)}</div>` : ""}
+        ${!d.principe ? `<p class="eyebrow">Texte de la décision</p><div class="art-full" ${attrLangue(d)}>${esc(d.texte)}</div>` : ""}
+        <p class="hint">${juricaf ? "Source : JURICAF, base de jurisprudence de l'AHJUCAF, réutilisée sous licence ODbL 1.0." : "Texte extrait du PDF officiel ; la mise en page peut être imparfaite."}</p>`
         : `<p class="status err">Cette décision n'existe pas dans la base. La citation est peut-être inexacte.</p>`}
       <div class="row"><button class="ghost" id="dBack">${depuisListe ? "Toutes les décisions" : "Rechercher dans les codes"}</button></div>
     </div>`;

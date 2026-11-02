@@ -62,7 +62,7 @@
     // Jurisprudence (facultative : la base de codes fonctionne sans).
     try {
       M.decisions = (await lireJson("data/jurisprudence.json")).decisions || [];
-      M.indexJ = construireIndex(M.decisions.map(d => `${d.objet}\n${d.dispositif}\n${d.texte.slice(0, 8000)}`));
+      M.indexJ = construireIndex(M.decisions.map(d => [d.titre, d.objet, d.principe, d.dispositif, (d.texte || "").slice(0, 8000), (d.texteAr || "").slice(0, 4000)].filter(Boolean).join("\n")));
     } catch { M.decisions = []; M.indexJ = null; }
     return M;
   }
@@ -80,7 +80,8 @@
   const decrireJuridiction = () => {
     const parJ = {};
     for (const d of M.decisions) parJ[d.juridiction] = (parJ[d.juridiction] || 0) + 1;
-    return Object.entries(parJ).map(([j, n]) => `${n} décisions de la ${j}`).join(", ");
+    const langue = { "Cour de cassation": "résumés en français", "Cour constitutionnelle": "textes en arabe" };
+    return Object.entries(parJ).map(([j, n]) => `${n} décisions de la ${j}${langue[j] ? ` (${langue[j]})` : ""}`).join(", ");
   };
 
   function normCode(c) {
@@ -113,7 +114,7 @@
   function catalogue() {
     return Object.entries(M.codes).filter(([, v]) => v.principal)
       .map(([k, v]) => `${k} : ${v.titre} [${v.langue}${v.version ? ", version " + v.version : ""}${v.statut && !/^en vigueur$/.test(v.statut) ? ", " + v.statut : ""}]`).join("\n")
-      + (M.decisions.length ? `\nJurisprudence (outil chercher_jurisprudence) : ${decrireJuridiction()}, textes en arabe.` : "");
+      + (M.decisions.length ? `\nJurisprudence (outil chercher_jurisprudence) : ${decrireJuridiction()}.` : "");
   }
 
   // Outils au format { name, description, inputSchema, execute(input) } ; trace(message) signale la progression.
@@ -147,12 +148,13 @@
       ...(!M.decisions.length ? [] : [
         {
           name: "chercher_jurisprudence",
-          description: "Recherche des décisions de justice marocaines dans la base de jurisprudence (textes en arabe). Renvoie jusqu'à 6 décisions {ref, juridiction, numero, date, objet, dispositif}. Interroge de préférence en arabe (ex. « حرية التعبير », « قانون تنظيمي »).",
-          inputSchema: { type: "object", properties: { requete: { type: "string", description: "mots-clés, en arabe de préférence" } }, required: ["requete"] },
+          description: "Recherche des décisions de justice marocaines : Cour de cassation (résumés en français : titre, principe, solution) et Cour constitutionnelle (textes en arabe). Renvoie jusqu'à 6 décisions {ref, juridiction, chambre, numero, date, titre, principe, sens, articles}. Interroge en français pour la Cour de cassation (ex. « bail commercial éviction indemnité »), en arabe pour la Cour constitutionnelle.",
+          inputSchema: { type: "object", properties: { requete: { type: "string", description: "mots-clés juridiques, en français ou en arabe" } }, required: ["requete"] },
           execute: async ({ requete }) => {
             trace(`recherche de jurisprudence « ${String(requete).slice(0, 60)} »`);
             return rechercherDecisions(String(requete)).map(d => ({ ref: d.ref, juridiction: d.juridiction, chambre: d.chambre, numero: d.numero, date: d.date,
-              objet: d.objet.slice(0, 350), dispositif: d.dispositif.slice(0, 450) }));
+              titre: (d.titre || d.objet || "").slice(0, 200), principe: (d.principe || d.dispositif || "").slice(0, 500), sens: d.sens || "",
+              articles: (d.liens || []).map(l => `${l.code} ${l.article}`) }));
           },
         },
         {
@@ -163,7 +165,9 @@
             trace(`lecture de la décision ${ref}`);
             const d = trouverDecision(ref);
             if (!d) throw new Error(`Décision « ${ref} » introuvable. Utilise chercher_jurisprudence pour obtenir une référence exacte.`);
-            return { ref: d.ref, juridiction: d.juridiction, numero: d.numero, date: d.date, objet: d.objet, dispositif: d.dispositif, texte: d.texte.slice(0, 6000) };
+            return { ref: d.ref, juridiction: d.juridiction, chambre: d.chambre, numero: d.numero, date: d.date, titre: d.titre || "", principe: d.principe || "",
+              sens: d.sens || "", articles: (d.liens || []).map(l => `${l.code} ${l.article}`), dispositif: d.dispositif, source: d.source,
+              texte: (d.texte || "").slice(0, 6000), texte_arabe: (d.texteAr || "").slice(0, 4000) };
           },
         },
       ]),
