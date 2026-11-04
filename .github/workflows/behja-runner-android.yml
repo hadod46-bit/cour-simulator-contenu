@@ -1,0 +1,67 @@
+# Compile l'application Android de Behja Runner et publie l'APK.
+# Lien permanent vers la dernière version :
+#   https://github.com/<propriétaire>/<dépôt>/releases/latest/download/behja-runner.apk
+name: Behja Runner – APK Android
+
+on:
+  push:
+    paths:
+      - 'behja-runner/**'
+      - '.github/workflows/behja-runner-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: behja-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: behja-runner/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Installer Capacitor
+        run: npm ci
+
+      - name: Copier le jeu dans le projet Android
+        run: npx cap sync android
+
+      - name: Compiler l'APK
+        working-directory: behja-runner/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Préparer le fichier
+        run: cp android/app/build/outputs/apk/release/app-release.apk behja-runner.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: behja-runner-apk
+          path: behja-runner/behja-runner.apk
+
+      - name: Publier une release GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: behja-runner-v1.0.${{ github.run_number }}
+          name: Behja Runner 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: behja-runner/behja-runner.apk
+          body: |
+            Application Android de **Behja Runner**.
+            Téléchargez `behja-runner.apk` sur votre téléphone, ouvrez-le et autorisez l'installation d'applications inconnues.

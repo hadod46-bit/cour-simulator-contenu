@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#b5462b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Behja Runner — fuis le singe à travers les souks de Marrakech !">
+<title>Behja Runner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css" id="css">
+</head>
+<body>
+<canvas id="jeu"></canvas>
+<div id="vignette"></div>
+<div id="danger"></div>
+
+<!-- Affichage pendant la partie -->
+<div id="hud" hidden>
+  <div class="hud-haut">
+    <div class="hud-g">
+      <div class="pilule"><span class="piece"></span><b id="h-pieces">0</b></div>
+      <div id="h-pouvoirs"></div>
+    </div>
+    <div class="hud-d">
+      <div class="score"><small>Score</small><b id="h-score">0</b></div>
+      <div id="h-mult" hidden>×2</div>
+    </div>
+  </div>
+  <button id="b-pause" class="b-rond" aria-label="Pause">❚❚</button>
+  <div id="h-singe" hidden>🐒 Attention !</div>
+  <div id="h-toast" hidden></div>
+</div>
+
+<!-- Menu principal -->
+<section id="menu" class="ecran ecran-menu">
+  <div class="titre">
+    <p class="ar">بهجة</p>
+    <h1>Behja<span>Runner</span></h1>
+    <p class="accroche">Un singe malicieux veut voler le tarbouche de Yassine&nbsp;!</p>
+  </div>
+  <div class="carte carte-menu">
+    <div class="stats">
+      <div><small>Record</small><b id="m-record">0</b></div>
+      <div><small>Dirhams</small><b id="m-pieces">0</b></div>
+    </div>
+    <button class="btn" id="b-jouer">Jouer</button>
+    <details class="aide">
+      <summary>Comment jouer</summary>
+      <ul>
+        <li><b>Glisse ← →</b> pour changer de voie</li>
+        <li><b>Glisse ↑</b> pour sauter par-dessus les caisses</li>
+        <li><b>Glisse ↓</b> pour glisser sous les tapis suspendus</li>
+        <li>Évite les <b>stands</b> du souk… ou grimpe dessus par les <b>rampes</b>&nbsp;!</li>
+        <li>Si tu trébuches deux fois de suite, le singe t'attrape.</li>
+      </ul>
+      <p class="pouvoirs-aide">
+        <span><i class="ic ic-aimant"></i>Aimant</span>
+        <span><i class="ic ic-babouches"></i>Babouches (super saut)</span>
+        <span><i class="ic ic-tapis"></i>Tapis volant</span>
+        <span><i class="ic ic-x2"></i>Score ×2</span>
+      </p>
+      <p class="clavier">Clavier : flèches ou ZQSD · Échap = pause</p>
+    </details>
+    <button id="b-son" class="btn-mini">🔊 Son activé</button>
+    <p id="m-version" class="version"></p>
+  </div>
+</section>
+
+<!-- Pause -->
+<section id="pause" class="ecran" hidden>
+  <div class="carte petite">
+    <h2>Pause</h2>
+    <button class="btn" id="b-reprendre">Reprendre</button>
+    <button class="btn btn-2" id="b-quitter">Menu</button>
+  </div>
+</section>
+
+<!-- Fin de partie -->
+<section id="fin" class="ecran" hidden>
+  <div class="carte petite">
+    <h2>Le singe t'a attrapé&nbsp;!</h2>
+    <p id="f-record" class="record" hidden>Nouveau record&nbsp;!</p>
+    <div class="stats">
+      <div><small>Score</small><b id="f-score">0</b></div>
+      <div><small>Dirhams</small><b id="f-pieces">0</b></div>
+      <div><small>Record</small><b id="f-meilleur">0</b></div>
+    </div>
+    <button class="btn" id="b-rejouer">Rejouer</button>
+    <button class="btn btn-2" id="b-menu">Menu</button>
+  </div>
+</section>
+
+<script>
+/*
+ * Lanceur et mise à jour automatique.
+ * Dans l'application Android, le jeu embarqué regarde d'abord si une version plus récente
+ * est publiée sur le site GitHub Pages ; si oui il l'ouvre, sinon (hors connexion,
+ * site injoignable) il lance la version incluse dans l'APK.
+ */
+(function () {
+  var SITE = 'https://hadod46-bit.github.io/cour-simulator-contenu/behja-runner/www/';
+  var params = new URLSearchParams(location.search);
+  var embarque = location.hostname === 'localhost';
+
+  function demarrer(v) {
+    if (v) {
+      // version en ligne : on force le rechargement de chaque fichier de cette version
+      var q = '?v=' + encodeURIComponent(v), map = { imports: {} };
+      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'js/hero.js', 'js/recolor.js',
+        'lib/three.module.min.js', 'lib/three.core.min.js', 'lib/GLTFLoader.js', 'lib/BufferGeometryUtils.js']
+        .forEach(function (f) { map.imports[new URL(f, location.href).href] = new URL(f + q, location.href).href; });
+      var im = document.createElement('script');
+      im.type = 'importmap';
+      im.textContent = JSON.stringify(map);
+      document.head.appendChild(im);
+      document.getElementById('css').href = 'style.css' + q;
+    }
+    import('./js/main.js').catch(function (e) {
+      // si la version en ligne ne se charge pas, on revient à la version embarquée
+      if (!embarque) console.error(e);
+    });
+  }
+
+  if (embarque && !params.has('local')) {
+    var dejaEssaye = false;
+    try { dejaEssaye = sessionStorage.getItem('behja.essai') === '1'; sessionStorage.setItem('behja.essai', '1'); } catch (e) { /* ignoré */ }
+    if (!dejaEssaye && navigator.onLine !== false) {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 3000);
+      fetch(SITE + 'version.json?t=' + Date.now(), { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (j) {
+          clearTimeout(minuteur);
+          if (!j || !j.version) throw new Error('version absente');
+          location.replace(SITE + 'index.html?v=' + encodeURIComponent(j.version));
+        })
+        .catch(function () { clearTimeout(minuteur); demarrer(''); });
+      return;
+    }
+  }
+  demarrer(params.get('v') || '');
+})();
+</script>
+</body>
+</html>
