@@ -187,10 +187,14 @@ loadMonkey('models/singe.glb').then(m => {
 }).catch(e => console.warn('Singe 3D indisponible, singe de secours utilisé', e));
 // La 103 (double tape pendant la course)
 const moto = M.buildMoto();
-moto.scale.setScalar(1.35);
+const MOTO_ECHELLE = 0.95;
+moto.scale.setScalar(MOTO_ECHELLE);
+// position du pilote sur la selle (repère de la moto, avant vers -z)
+const SELLE = new THREE.Vector3(0, 0.795 * MOTO_ECHELLE - 0.52, 0.16 * MOTO_ECHELLE - 0.5);
+const tmpQ2 = new THREE.Quaternion(), tmpV2 = new THREE.Vector3();
 moto.visible = false;
 scene.add(moto);
-let motoT = 0, cabre = 0;
+let motoT = 0, cabre = 0, couche = 0;
 const carpet = M.buildFlyingCarpet();
 carpet.visible = false;
 scene.add(carpet);
@@ -792,14 +796,25 @@ function syncScene(dt) {
   Sound.moteur(moto.visible && state === 'play', speed);
   if (moto.visible) {
     cabre += ((air ? 0.3 : 0) - cabre) * Math.min(1, dt * 8);
-    moto.position.set(p.x, p.y, -p.z);
-    moto.rotation.set(cabre, 0, runner.rotation.z);
-    const tourne = (state === 'play' ? speed * 1.12 : 0) * dt / (0.32 * 1.35);
+    // glissade : la 103 se couche sur le flanc et racle le sol (assez basse pour passer sous les tapis)
+    const glisse = p.slide > 0 && !air ? 1 : 0;
+    couche += (glisse - couche) * Math.min(1, dt * (glisse ? 16 : 9));
+    const cote = p.lane === 0 ? -1 : 1;   // se couche vers l'intérieur de la rue
+    // la moto bascule autour de son point de contact : on la décale à l'opposé pour garder le pilote dans sa voie
+    moto.position.set(p.x + cote * 0.7 * couche, p.y + 0.05 * couche, -p.z);
+    moto.rotation.set(cabre, 0, runner.rotation.z + cote * 1.25 * couche, 'YXZ');
+    const tourne = (state === 'play' ? speed * 1.12 : 0) * dt / (0.32 * MOTO_ECHELLE);
     for (const r of moto.userData.roues) r.rotation.x -= tourne;
-    const baisse = p.slide > 0 ? 1 : 0;
-    runner.position.set(p.x, p.y + 0.55 - 0.35 * baisse + Math.sin(time * 40) * 0.008, -p.z - 0.3 + 0.1 * baisse);
-    runner.rotation.x = cabre;
-    pv.rotation.x = -0.6 * baisse;
+    // le pilote suit exactement l'inclinaison de la moto
+    tmpV2.copy(SELLE).applyQuaternion(moto.quaternion).add(moto.position);
+    runner.position.copy(tmpV2);
+    runner.position.y += Math.sin(time * 40) * 0.006 * (1 - couche);
+    runner.quaternion.copy(moto.quaternion);
+    pv.rotation.x = 0;
+    // gerbe d'étincelles là où la moto frotte
+    if (couche > 0.6 && state === 'play' && Math.random() < 0.8) {
+      puff(p.x + cote * 0.45, p.ground + 0.08, p.z + rand(-0.3, 0.4), Math.random() < 0.5 ? '#ffd166' : '#ff9f1c', 0.22, 0.3, rand(-1, 1), rand(1, 3), rand(-2, 0), false);
+    }
   }
   carpet.visible = flying;
   if (flying) { carpet.position.set(p.x, p.y + 0.08, -p.z); M.waveCarpet(carpet, time); }
