@@ -48,6 +48,8 @@ behja-runner/
 └── capacitor.config.json
 ```
 
+Un cycle jour → coucher de soleil → nuit étoilée (lanternes allumées) se déroule pendant la partie.
+
 Tout est dessiné par programme (aucune image ni aucun son externe) : la musique (darbouka,
 qraqeb, guembri) est synthétisée en direct avec la Web Audio API.
 
