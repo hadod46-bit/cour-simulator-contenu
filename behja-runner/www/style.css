@@ -225,3 +225,86 @@ h2 { margin: 0 0 12px; font-size: 26px; color: var(--terre); }
   text-shadow: 0 2px 0 var(--terre-f), 0 0 8px rgba(0,0,0,.35);
 }
 .version { margin: 4px 0 0; font-size: 11px; color: #a07a5a; }
+
+/* ---------- Monnaies ---------- */
+.bourses-hud { display: flex; gap: 6px; }
+.piece-dirham { background: radial-gradient(circle at 35% 35%, #f4fbf7, #b9d8c8 55%, #5b8f78); box-shadow: inset 0 0 0 2px #2a9d6f; }
+.pilule-dirham { color: #d9fff0; border-color: rgba(42,157,111,.8); }
+.m-rial, .m-dirham { display: inline-flex; align-items: center; gap: 3px; font-weight: 800; }
+.m-rial::before, .m-dirham::before {
+  content: ''; width: .9em; height: .9em; border-radius: 50%; display: inline-block;
+  background: radial-gradient(circle at 35% 35%, #ffe680, #f2b632 55%, #b8860b);
+}
+.m-dirham::before { background: radial-gradient(circle at 35% 35%, #f4fbf7, #b9d8c8 55%, #2a9d6f); }
+.stats b.m-rial::before, .stats b.m-dirham::before { width: .7em; height: .7em; }
+.rangee-btn { display: flex; gap: 8px; }
+.rangee-btn .btn { margin: 6px 0; }
+.rangee-btn #b-jouer { flex: 1.4; }
+.rangee-btn #b-boutique { flex: 1; font-size: 17px; }
+.btn-dirham { background: linear-gradient(180deg, #34b37f, #1f8a5c); box-shadow: 0 5px 0 #0f5a3a; font-size: 18px; }
+.btn-dirham:active { box-shadow: 0 2px 0 #0f5a3a; }
+.btn-dirham:disabled { filter: grayscale(.7); opacity: .6; }
+.note-fin { margin: 0 0 4px; font-size: 13px; color: #8a5a3a; }
+.boosts-menu { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: -4px 0 4px; }
+.boosts-menu:empty { display: none; }
+.boosts-menu button {
+  border: 2px solid #e2c48f; background: var(--sable); border-radius: 999px;
+  padding: 4px 10px; font: inherit; font-size: 13px; font-weight: 700; color: #8a5a3a; cursor: pointer;
+}
+.boosts-menu button.on { background: #fff1c4; border-color: var(--or); color: var(--terre-f); }
+
+/* ---------- Boutique (panneau en bas, le personnage reste visible au-dessus) ---------- */
+.ecran-boutique {
+  position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 0 var(--bas); background: linear-gradient(180deg, rgba(58,30,16,0) 30%, rgba(58,30,16,.35));
+}
+.boutique {
+  width: min(100%, 460px); max-height: 60vh; display: flex; flex-direction: column;
+  background: var(--creme); border-radius: 22px 22px 0 0; box-shadow: 0 -8px 30px rgba(58,30,16,.35);
+  border-top: 6px solid transparent;
+  background-image: linear-gradient(var(--creme), var(--creme)),
+    repeating-conic-gradient(from 45deg, var(--bleu) 0 25%, var(--sable) 0 50%, var(--vert) 0 75%, var(--sable) 0 100%);
+  background-origin: border-box; background-clip: padding-box, border-box; background-size: auto, 16px 16px;
+}
+.boutique header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 6px; }
+.boutique h2 { margin: 0; font-size: 20px; flex: 1; }
+.boutique .bourses { display: flex; gap: 6px; }
+.boutique .pilule { font-size: 15px; padding: 3px 9px 3px 4px; }
+.boutique .piece { width: 16px; height: 16px; }
+.b-fermer { border: 0; background: var(--sable); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; font-weight: 900; color: var(--terre-f); cursor: pointer; }
+.onglets { display: flex; gap: 4px; padding: 4px 10px 8px; overflow-x: auto; }
+.onglets button {
+  flex: 1; border: 0; border-radius: 10px; padding: 8px 6px; font: inherit; font-size: 13px; font-weight: 800;
+  background: var(--sable); color: #8a5a3a; cursor: pointer; white-space: nowrap;
+}
+.onglets button.actif { background: var(--terre); color: #fff; }
+.boutique-contenu { overflow-y: auto; padding: 0 12px 14px; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.b-intro { margin: 0 0 8px; font-size: 13px; color: #8a5a3a; }
+.cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.carte-perso {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 14px;
+  background: var(--sable); border: 3px solid transparent; cursor: pointer; text-align: left;
+}
+.carte-perso.apercu { border-color: var(--or); background: #fff1c4; }
+.carte-perso b { font-size: 16px; color: var(--terre-f); }
+.carte-perso small, .ligne small { font-size: 12px; line-height: 1.35; color: #6b4a33; display: block; }
+.carte-perso .btn-petit, .carte-perso .etiquette { margin-top: auto; }
+.ligne {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  background: var(--sable); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px;
+}
+.ligne b { color: var(--terre-f); }
+.btn-petit {
+  border: 0; border-radius: 999px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 800; white-space: nowrap;
+  color: #fff; background: linear-gradient(180deg, #d4583a, var(--terre)); box-shadow: 0 3px 0 var(--terre-f); cursor: pointer;
+}
+.btn-petit.btn-dirham { background: linear-gradient(180deg, #34b37f, #1f8a5c); box-shadow: 0 3px 0 #0f5a3a; }
+.btn-petit:disabled { background: #cbb9a0; box-shadow: none; color: #fff8ea; cursor: default; }
+.etiquette { display: inline-block; padding: 6px 10px; border-radius: 999px; background: var(--vert); color: #fff; font-size: 12px; font-weight: 800; text-align: center; }
+.pips { display: flex; gap: 3px; margin-top: 5px; }
+.pips i { width: 16px; height: 6px; border-radius: 3px; background: #dcc8a8; }
+.pips i.plein { background: var(--vert); }
+.stock { font-size: 12px; font-weight: 800; color: var(--vert); }
+.bonus { font-size: 11px; font-weight: 800; color: #fff; background: var(--terre); border-radius: 6px; padding: 1px 5px; }
+.interrupteur { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--vert); }
+.note { font-size: 12px; color: #8a5a3a; line-height: 1.4; margin: 6px 2px; }

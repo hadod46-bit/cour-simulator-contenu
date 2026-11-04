@@ -18,6 +18,16 @@ le tarbouche du héros : il faut fuir en esquivant les stands du souk.
 - Bonus : **Aimant** (attire les dirhams), **Babouches** (super saut, permet de sauter sur les stands),
   **Tapis volant** (vol au-dessus du souk), **×2** (score doublé).
 
+### Monnaies et boutique
+
+- **Rials** (pièces jaunes) : gagnés en courant ; servent aux **améliorations** (durée des bonus, 5 niveaux)
+  et aux **boosts** à usage unique (départ en tapis volant, aimant de départ).
+- **Dirhams** (pièces argentées, monnaie premium) : rares sur la piste, 1 offert par jour, échange à la
+  banque (1500 rials → 1 dirham) ou packs payants. Ils débloquent les **personnages** (Salma, Mehdi,
+  Hajj Brahim) et permettent de **continuer** une partie après la capture (1, puis 2, puis 4 dirhams…).
+- Les packs payants nécessitent Google Play Billing : ils seront activables une fois le jeu publié sur le
+  Play Store (affichés « bientôt disponible » d'ici là).
+
 Clavier (sur ordinateur) : flèches ou ZQSD, Échap pour la pause.
 
 ## Installer sur Android

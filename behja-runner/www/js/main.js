@@ -11,6 +11,9 @@ import * as T from './textures.js';
 import * as M from './models.js';
 import { loadHero } from './hero.js';
 import { loadMonkey } from './monkey3d.js';
+import { PERSOS, persoParId } from './persos.js';
+import { eco, CHANCE_DIRHAM } from './eco.js';
+import { initShop } from './shop.js';
 
 const $ = id => document.getElementById(id);
 
@@ -150,18 +153,34 @@ const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THRE
 // Personnages
 let runner = M.buildRunner();   // personnage de secours, remplacé dès que le modèle animé est chargé
 scene.add(runner);
-loadHero('models/yassine.glb').then(h => {
-  h.userData.rig.fez.visible = runner.userData.rig.fez.visible;
-  scene.remove(runner);
-  runner = h;
-  scene.add(runner);
-}).catch(e => console.warn('Modèle 3D indisponible, personnage de secours utilisé', e));
+const herosCharges = new Map();
+let persoVoulu = null;
+function chargerPerso(id) {
+  if (!herosCharges.has(id)) herosCharges.set(id, loadHero(persoParId(id)));
+  return herosCharges.get(id);
+}
+// Affiche un personnage (sélection ou aperçu dans la boutique).
+function afficherPerso(id) {
+  persoVoulu = id;
+  chargerPerso(id).then(h => {
+    if (persoVoulu !== id || runner === h) return;
+    h.userData.rig.fez.visible = true;
+    h.position.copy(runner.position);
+    h.rotation.copy(runner.rotation);
+    scene.remove(runner);
+    runner = h;
+    scene.add(runner);
+    if (monkeyObj.userData.setHat) monkeyObj.userData.setHat(persoParId(id).chapeau);
+  }).catch(e => console.warn('Modèle 3D indisponible, personnage de secours utilisé', e));
+}
+afficherPerso(eco.perso);
 let monkeyObj = M.buildMonkey();   // singe de secours, remplacé par le modèle animé
 monkeyObj.scale.setScalar(0.75);
 const camDir = new THREE.Vector3();
 scene.add(monkeyObj);
 loadMonkey('models/singe.glb').then(m => {
   m.userData.rig.fez.visible = monkeyObj.userData.rig.fez.visible;
+  m.userData.setHat(persoParId(eco.perso).chapeau);
   scene.remove(monkeyObj);
   monkeyObj = m;
   scene.add(monkeyObj);
@@ -204,15 +223,18 @@ function removeObj(obj) {
 
 // ---------------------------------------------------------------- état du jeu
 let state = 'menu';
-let speed = SPEED0, score = 0, coinsRun = 0, time = 0, shake = 0, dyingT = 0;
-let best = store.get('record', 0), bank = store.get('pieces', 0);
+let speed = SPEED0, score = 0, coinsRun = 0, dirhamsRun = 0, time = 0, shake = 0, dyingT = 0;
+let best = store.get('record', 0);
+let relances = 0, rialsComptes = 0, dirhamsComptes = 0;   // « Continuer » et gains déjà crédités
+const powerMax = { aimant: 1, babouches: 1, tapis: 1, x2: 1 };
+let gems = [];   // dirhams posés sur la piste
 const p = {};
 const monkey = { dist: 2.5, x: 0, y: 0, phase: 0, danger: 0, intro: 0 };
 const power = { aimant: 0, babouches: 0, tapis: 0, x2: 0 };
 let obstacles = [], coins = [], powerups = [], decor = [], palms = [];
 let genZ = 0, lastPowerZ = 0, decorZ = 0, palmZ = 0, flyCoinZ = 0;
 const cam = { x: 0, y: CAM_H };
-let camIntro = 0;
+let camIntro = 0, cadreBoutique = 0;
 
 function resetWorld(withObstacles) {
   for (const arr of [obstacles, powerups, decor, palms]) for (const e of arr) if (e.obj) removeObj(e.obj);
@@ -222,7 +244,10 @@ function resetWorld(withObstacles) {
     lane: 1, laneFrom: 1, x: 0, y: 0, vy: 0, z: 0, ground: 0, slide: 0, onGround: true,
     phase: 0, ghost: 0, coyote: 0, jumpBuf: 0, slideQueued: false, ignore: null, ignoreT: 0, lastStep: 0
   });
-  speed = withObstacles ? SPEED0 : 9; score = 0; coinsRun = 0; time = 0; shake = 0; dyingT = 0;
+  speed = withObstacles ? SPEED0 : 9; score = 0; coinsRun = 0; dirhamsRun = 0; time = 0; shake = 0; dyingT = 0;
+  relances = 0; rialsComptes = 0; dirhamsComptes = 0;
+  for (const g of gems) if (g.obj) scene.remove(g.obj);
+  gems = [];
   for (const k in power) power[k] = 0;
   genZ = withObstacles ? 70 : Infinity; lastPowerZ = 0; decorZ = -BEHIND; palmZ = -BEHIND; flyCoinZ = 0;
   Object.assign(monkey, { dist: 2.4, x: 0, y: 0, danger: 0, intro: 2.8, lastStep: 0, wait: 0 });
@@ -251,13 +276,17 @@ function addLow(lane, z) {
 function addHigh(lane, z) {
   obstacles.push({ type: 'haut', lane, x: LANES[lane], z0: z - 0.3, z1: z + 0.3, yb: 1.2, h: 3.2, hw: 1.15, rug: randInt(0, 3) });
 }
-function coinLine(lane, z0, z1, y, step) { for (let z = z0; z <= z1; z += step || 3) coins.push({ x: LANES[lane], y: y || 0.9, z }); }
+function addCoin(x, y, z) {
+  if (z > 300 && Math.random() < CHANCE_DIRHAM) gems.push({ x, y, z });
+  else coins.push({ x, y, z });
+}
+function coinLine(lane, z0, z1, y, step) { for (let z = z0; z <= z1; z += step || 3) addCoin(LANES[lane], y || 0.9, z); }
 function coinArc(lane, zc, base) {
-  for (let i = -3; i <= 3; i++) { const t = i / 3.5; coins.push({ x: LANES[lane], y: (base || 0) + 0.9 + 1.4 * (1 - t * t), z: zc + i * 2 }); }
+  for (let i = -3; i <= 3; i++) { const t = i / 3.5; addCoin(LANES[lane], (base || 0) + 0.9 + 1.4 * (1 - t * t), zc + i * 2); }
 }
 function coinRamp(lane, z0, len) {
-  for (let z = z0 + 1; z < z0 + RAMP_LEN; z += 2.5) coins.push({ x: LANES[lane], y: STALL_H * (z - z0) / RAMP_LEN + 0.9, z });
-  for (let z = z0 + RAMP_LEN + 1.5; z < z0 + RAMP_LEN + len; z += 3) coins.push({ x: LANES[lane], y: STALL_H + 0.9, z });
+  for (let z = z0 + 1; z < z0 + RAMP_LEN; z += 2.5) addCoin(LANES[lane], STALL_H * (z - z0) / RAMP_LEN + 0.9, z);
+  for (let z = z0 + RAMP_LEN + 1.5; z < z0 + RAMP_LEN + len; z += 3) addCoin(LANES[lane], STALL_H + 0.9, z);
 }
 function maybePower(lane, z) {
   if (z - lastPowerZ > 380 && Math.random() < 0.4) {
@@ -435,8 +464,8 @@ function checkCollisions() {
     if (hit) { onHit(o); return; }
   }
 }
-function activatePower(kind) {
-  power[kind] = DUREES[kind];
+function activatePower(kind, duree) {
+  power[kind] = powerMax[kind] = duree || eco.duree(kind, DUREES[kind]);
   if (kind === 'tapis') { flyCoinZ = p.z + 20; p.slide = 0; }
   Sound.power(); toast(NOMS[kind] + ' !'); vibrate(30);
 }
@@ -522,6 +551,16 @@ function update(dt) {
       for (let i = 0; i < 3; i++) puff(c.x, c.y, c.z, '#ffd75e', 0.35, 0.35, rand(-2, 2), rand(1, 3), rand(-1, 1), true);
     }
   }
+  for (const g of gems) {
+    if (g.taken) continue;
+    if (power.aimant > 0 && !g.mag && g.z - p.z < 28 && g.z > p.z - 2) g.mag = true;
+    if (g.mag) { const k = Math.min(1, dt * 9); g.x += (p.x - g.x) * k; g.y += (p.y + 0.9 - g.y) * k; g.z += (p.z + 0.2 - g.z) * k; }
+    if (playing && Math.abs(g.z - p.z) < 1.1 && Math.abs(g.x - p.x) < 1.1 && g.y > p.y - 0.5 && g.y < p.y + phh + 0.7) {
+      g.taken = true; dirhamsRun++;
+      Sound.power(); toast('+1 dirham !'); vibrate(40);
+      for (let i = 0; i < 10; i++) puff(g.x, g.y, g.z, '#9dffd2', 0.5, 0.6, rand(-3, 3), rand(1, 4), rand(-1, 1), true);
+    }
+  }
   for (const u of powerups) {
     if (u.taken) continue;
     if (playing && Math.abs(u.z - p.z) < 1.1 && Math.abs(u.x - p.x) < 1.1 && u.y > p.y - 0.5 && u.y < p.y + phh + 0.6) {
@@ -574,6 +613,7 @@ function update(dt) {
   obstacles = prune(obstacles, o => o.z1 > back);
   coins = coins.filter(c => !c.taken && c.z > back);
   powerups = prune(powerups, u => !u.taken && u.z > back);
+  gems = prune(gems, g => !g.taken && g.z > back);
   decor = prune(decor, d => d.z > back);
   palms = prune(palms, d => d.z > back);
 }
@@ -672,6 +712,12 @@ function syncScene(dt) {
   }
   coinMesh.count = n;
   coinMesh.instanceMatrix.needsUpdate = true;
+  for (const g of gems) {
+    if (!g.obj) { g.obj = M.buildDirham(); scene.add(g.obj); }
+    g.obj.position.set(g.x, g.y + Math.sin(time * 3 + g.z) * 0.12, -g.z);
+    g.obj.userData.coin.rotation.y = time * 3.5;
+    g.obj.visible = vis(g.z);
+  }
 
   // joueur
   const flying = power.tapis > 0;
@@ -766,9 +812,11 @@ function syncScene(dt) {
   const e = smooth(0, 1, camIntro);
   if (e < 1) {
     // menu : caméra face au héros (qui nous regarde), puis recul jusqu'à la vue de course
-    const mx = p.x - 0.25;
-    camera.position.set(lerp(mx, cam.x, e), lerp(1.25, cam.y, e), -(pz - lerp(3.9, CAM_BACK, e)));
-    camera.lookAt(lerp(mx, cam.x * 0.85, e), lerp(0.3, cam.y - 2.2, e), -(pz + lerp(0, 10, e)));
+    const vitrine = boutique.ouverte ? 1 : 0;
+    cadreBoutique += (vitrine - cadreBoutique) * Math.min(1, dt * 5);
+    const mx = p.x - 0.25 * (1 - cadreBoutique), bh = cadreBoutique;
+    camera.position.set(lerp(mx, cam.x, e), lerp(lerp(1.25, 1.1, bh), cam.y, e), -(pz - lerp(lerp(3.9, 3.5, bh), CAM_BACK, e)));
+    camera.lookAt(lerp(mx, cam.x * 0.85, e), lerp(lerp(0.3, -0.75, bh), cam.y - 2.2, e), -(pz + lerp(0, 10, e)));
   } else {
     camera.position.set(lerp(cam.x, p.x + 2.3, vue) + sx, lerp(cam.y, p.y + 1.9, vue) + sy, -(pz - lerp(CAM_BACK, 3.3, vue)));
     camera.lookAt(lerp(cam.x * 0.85, p.x + 0.35, vue), lerp(cam.y - 2.2, p.y + 1.0, vue), -(pz + lerp(10, 0, vue)));
@@ -788,9 +836,9 @@ function syncScene(dt) {
 const ui = {
   hud: $('hud'), menu: $('menu'), pause: $('pause'), fin: $('fin'),
   pieces: $('h-pieces'), score: $('h-score'), mult: $('h-mult'), pouvoirs: $('h-pouvoirs'),
-  singe: $('h-singe'), toast: $('h-toast'), danger: $('danger')
+  singe: $('h-singe'), toast: $('h-toast'), danger: $('danger'), dirhams: $('h-dirhams'), dirhamsBox: $('h-dirhams-box')
 };
-let last = { score: -1, pieces: -1, pw: '' };
+let last = { score: -1, pieces: -1, dirhams: -1, pw: '' };
 let toastTimer = null;
 function toast(txt) {
   ui.toast.hidden = true; void ui.toast.offsetWidth;
@@ -802,34 +850,65 @@ function updateHud() {
   const sc = Math.floor(score);
   if (sc !== last.score) { ui.score.textContent = sc; last.score = sc; }
   if (coinsRun !== last.pieces) { ui.pieces.textContent = coinsRun; last.pieces = coinsRun; }
+  if (dirhamsRun !== last.dirhams) { ui.dirhams.textContent = dirhamsRun; ui.dirhamsBox.hidden = dirhamsRun === 0; last.dirhams = dirhamsRun; }
   ui.mult.hidden = !(power.x2 > 0);
   const danger = state === 'play' && monkey.danger > 0;
   ui.singe.hidden = !danger;
   ui.danger.classList.toggle('on', danger);
   let html = '';
   for (const k of ['aimant', 'babouches', 'tapis']) {
-    if (power[k] > 0) html += `<div class="pouvoir"><span>${NOMS[k]}</span><span class="barre"><i style="width:${(power[k] / DUREES[k]) * 100}%"></i></span></div>`;
+    if (power[k] > 0) html += `<div class="pouvoir"><span>${NOMS[k]}</span><span class="barre"><i style="width:${(power[k] / powerMax[k]) * 100}%"></i></span></div>`;
   }
   if (html !== last.pw) { ui.pouvoirs.innerHTML = html; last.pw = html; }
 }
+const BOOST_NOMS = { trombe: 'Départ en trombe', aimantDepart: 'Aimant de départ' };
 function refreshMenu() {
   $('m-record').textContent = best;
-  $('m-pieces').textContent = bank;
+  $('m-pieces').textContent = eco.rials;
+  $('m-dirhams').textContent = eco.dirhams;
+  const def = persoParId(eco.perso);
+  $('m-accroche').textContent = `Un singe malicieux veut voler ${def.nomChapeau} de ${def.nom} !`;
+  // boosts en stock : on peut les activer ou non pour la prochaine partie
+  $('m-boosts').innerHTML = Object.keys(BOOST_NOMS).filter(k => eco.boosts[k] > 0)
+    .map(k => `<button data-boost="${k}" class="${eco.armes[k] ? 'on' : ''}">${eco.armes[k] ? '✓ ' : ''}${BOOST_NOMS[k]} ×${eco.boosts[k]}</button>`).join('');
   $('b-son').textContent = Sound.on ? '🔊 Son activé' : '🔇 Son coupé';
 }
 function show(el) { for (const e of [ui.menu, ui.pause, ui.fin]) e.hidden = e !== el; }
+
+// Boutique
+const boutique = initShop({
+  onPreview: id => afficherPerso(id),
+  onChange: () => refreshMenu(),
+  toast, son: Sound
+});
+function ouvrirBoutique() { Sound.init(); boutique.open(); ui.menu.hidden = true; }
+$('b-boutique').addEventListener('click', ouvrirBoutique);
+$('b-fermer').addEventListener('click', () => { boutique.close(); show(ui.menu); });
+$('m-boosts').addEventListener('click', e => {
+  const b = e.target.closest('[data-boost]');
+  if (!b) return;
+  eco.armes[b.dataset.boost] = !eco.armes[b.dataset.boost];
+  eco.save();
+  refreshMenu();
+});
 
 function startGame() {
   Sound.init();
   const fromMenu = state === 'menu';
   resetWorld(true);
-  if (fromMenu) { monkey.dist = -0.6; monkey.x = p.x + 1.45; monkey.wait = 0.7; }   // le singe reste assis, Yassine s'élance, puis il le rattrape hors champ
+  if (fromMenu) { monkey.dist = -0.6; monkey.x = p.x + 1.45; monkey.wait = 0.7; }   // le singe reste assis, le héros s'élance, puis il le rattrape hors champ
+  afficherPerso(eco.perso);
   state = 'play';
   show(null);
   ui.hud.hidden = false;
-  last = { score: -1, pieces: -1, pw: '' };
+  last = { score: -1, pieces: -1, dirhams: -1, pw: '' };
   Sound.startMusic();
-  toast('Fuis le singe !');
+  // boosts activés dans la boutique
+  const boosts = eco.consommerBoosts();
+  // le tapis volant décolle une fois la caméra placée derrière le héros
+  if (boosts.includes('trombe')) setTimeout(() => { if (state === 'play') activatePower('tapis', 6); }, fromMenu ? 1100 : 200);
+  if (boosts.includes('aimantDepart')) activatePower('aimant', 15);
+  toast(boosts.length ? 'Boost activé !' : 'Fuis le singe !');
 }
 function pauseGame() {
   if (state !== 'play') return;
@@ -855,20 +934,47 @@ function toMenu() {
   refreshMenu();
   show(ui.menu);
 }
+const coutRelance = () => 2 ** relances;   // 1, 2, 4… dirhams
 function gameOver() {
   state = 'over';
   const sc = Math.floor(score);
   const rec = sc > best;
   if (rec) { best = sc; store.set('record', best); }
-  bank += coinsRun; store.set('pieces', bank);
+  // on crédite seulement ce qui n'a pas déjà été compté (en cas de « Continuer »)
+  eco.gagner(coinsRun - rialsComptes, dirhamsRun - dirhamsComptes);
+  rialsComptes = coinsRun; dirhamsComptes = dirhamsRun;
   $('f-score').textContent = sc;
   $('f-pieces').textContent = coinsRun;
+  $('f-dirhams').textContent = dirhamsRun;
+  $('f-dirhams-box').hidden = dirhamsRun === 0;
   $('f-meilleur').textContent = best;
   $('f-record').hidden = !rec;
+  const cout = coutRelance();
+  $('f-cout').textContent = cout;
+  $('b-continuer').disabled = eco.dirhams < cout;
+  $('f-continuer-info').hidden = eco.dirhams >= cout;
+  $('f-continuer-info').textContent = `Il te faut ${cout} dirham${cout > 1 ? 's' : ''} pour continuer (tu en as ${eco.dirhams}).`;
   ui.hud.hidden = true;
   ui.danger.classList.remove('on');
   show(ui.fin);
 }
+// « Continuer » : on repart du même endroit, la voie devant est dégagée
+function continuer() {
+  if (state !== 'over' || !eco.depenserDirhams(coutRelance())) return;
+  relances++;
+  obstacles = prune(obstacles, o => o.z1 < p.z - 2 || o.z0 > p.z + 45);
+  Object.assign(p, { y: p.ground, vy: 0, slide: 0, onGround: true, ghost: 2.5, hitT: 0 });
+  Object.assign(monkey, { dist: 13, danger: 0, intro: 0, wait: 0 });
+  runner.userData.rig.fez.visible = true;
+  monkeyObj.userData.rig.fez.visible = false;
+  dyingT = 0;
+  state = 'play';
+  show(null);
+  ui.hud.hidden = false;
+  Sound.startMusic();
+  toast('C\'est reparti !');
+}
+$('b-continuer').addEventListener('click', continuer);
 
 $('b-jouer').addEventListener('click', startGame);
 $('b-rejouer').addEventListener('click', startGame);
@@ -934,6 +1040,7 @@ function frame(now) {
 applyQuality();
 resetWorld(false);
 refreshMenu();
+if (eco.cadeauDuJour()) { refreshMenu(); setTimeout(() => toast('Cadeau du jour : +1 dirham !'), 600); }
 requestAnimationFrame(frame);
 
 // Cache hors ligne pour la version en ligne (navigateur ou application).
@@ -951,6 +1058,6 @@ window.BEHJA = {
   get player() { return p; }, get obstacles() { return obstacles; }, act, startGame, power,
   step(dt) { update(dt); }, setInvincible(v) { p.ghost = v ? 1e9 : 0; }, setTime(t) { time = t; },
   get quality() { return quality; }, setQuality(q) { quality = q; applyQuality(); },
-  get dyingT() { return dyingT; }, crash() { crash(); },
+  get dyingT() { return dyingT; }, crash() { crash(); }, eco, continuer, boutique, afficherPerso,
   renderer
 };

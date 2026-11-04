@@ -1,14 +1,10 @@
-// Yassine en 3D animé (squelette + animations professionnelles).
-// Modèle de base : « KayKit Adventurers » de Kay Lousberg (licence CC0), recoloré et accessoirisé.
+// Personnages jouables en 3D animé (squelette + animations professionnelles).
+// Modèles de base : « KayKit Adventurers » de Kay Lousberg (licence CC0), recolorés et accessoirisés.
 import * as THREE from '../lib/three.module.min.js';
 import { GLTFLoader } from '../lib/GLTFLoader.js';
 import { recolor } from './recolor.js';
 
 const SCALE = 0.8;
-
-// Cellules de la palette (8 colonnes x 4 lignes) : 1 = cheveux, 0 = peau, 19 = chaussures, 15 = pantalon.
-const COULEURS_CORPS = { 1: ['#3a2618', '#140b06'], 0: ['#c98a5c', '#a06438'] };
-const COULEURS_JAMBES = { 1: ['#3a2618', '#140b06'], 0: ['#c98a5c', '#a06438'], 19: ['#ffffff', '#cfc6b8'], 15: ['#4a6da8', '#253d66'] };
 
 function std(color, roughness) { return new THREE.MeshStandardMaterial({ color, roughness: roughness || 0.6, metalness: 0 }); }
 
@@ -33,6 +29,62 @@ export function buildFez() {
   g.add(tassel);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.tassel = tassel;
+  return g;
+}
+
+// Diadème doré (Salma)
+function buildDiademe() {
+  const g = new THREE.Group();
+  const or = new THREE.MeshStandardMaterial({ color: '#f2c14e', roughness: 0.3, metalness: 0.6 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 10, 40), or);
+  ring.rotation.x = Math.PI / 2;
+  ring.scale.set(1, 1.05, 1);
+  g.add(ring);
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), std('#2a9d8f', 0.2));
+  gem.position.set(0, 0.06, 0.52);
+  g.add(gem);
+  for (const sx of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), std('#e0457b', 0.3));
+    p.position.set(sx * 0.3, 0.04, 0.42);
+    g.add(p);
+  }
+  return g;
+}
+// Casquette rouge portée à l'envers (Mehdi)
+function buildCasquette() {
+  const g = new THREE.Group();
+  const rouge = std('#d62828', 0.55);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.47, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), rouge);
+  dome.scale.set(1, 0.75, 1.05);
+  g.add(dome);
+  // visière tournée vers l'arrière (demi-disque du côté -z, l'avant du visage étant +z)
+  const visiere = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.035, 24, 1, false, Math.PI / 2, Math.PI), std('#1f7a4d', 0.5));
+  visiere.position.set(0, 0.0, -0.3);
+  g.add(visiere);
+  const bouton = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), std('#1f7a4d', 0.5));
+  bouton.position.y = 0.36;
+  g.add(bouton);
+  return g;
+}
+// Chéchia blanche brodée (Hajj Brahim)
+function buildKufi() {
+  const g = new THREE.Group();
+  const blanc = std('#f5f2ea', 0.8);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.46, 0.3, 28), blanc);
+  cap.position.y = 0.12;
+  g.add(cap);
+  const top = new THREE.Mesh(new THREE.SphereGeometry(0.4, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2), blanc);
+  top.scale.y = 0.35;
+  top.position.y = 0.27;
+  g.add(top);
+  const brod = new THREE.Mesh(new THREE.CylinderGeometry(0.462, 0.462, 0.06, 28, 1, true), std('#2a9d8f', 0.6));
+  brod.position.y = 0.04;
+  g.add(brod);
+  return g;
+}
+export function buildHat(type) {
+  const g = type === 'diademe' ? buildDiademe() : type === 'casquette' ? buildCasquette() : type === 'kufi' ? buildKufi() : buildFez();
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
 
@@ -74,8 +126,8 @@ export function attach(bone, obj, worldPoint, model) {
   bone.add(obj);
 }
 
-export async function loadHero(url) {
-  const gltf = await new GLTFLoader().loadAsync(url);
+export async function loadHero(def) {
+  const gltf = await new GLTFLoader().loadAsync(def.url);
   const model = gltf.scene;
 
   // Deux variantes de texture : corps (peau hâlée, cheveux noirs) et jambes (jean, baskets blanches).
@@ -90,7 +142,7 @@ export async function loadHero(url) {
     m.roughness = 0.65;
     return m;
   };
-  const corps = make(COULEURS_CORPS), jambes = make(COULEURS_JAMBES);
+  const corps = make(def.corps), jambes = def.jambes ? make(def.jambes) : corps;
   model.traverse(o => {
     if (!o.isMesh) return;
     o.material = /Leg/.test(o.name) ? jambes : corps;
@@ -117,19 +169,21 @@ export async function loadHero(url) {
   A.Idle.play();
   mixer.update(0);
   root.updateMatrixWorld(true);
-  const headMesh = model.getObjectByName('Rogue_Head');
+  const headMesh = model.getObjectByName(def.prefixe + '_Head');
   const box = new THREE.Box3().setFromObject(headMesh);
   const head = model.getObjectByName('head'), chest = model.getObjectByName('chest');
-  const fez = buildFez();
-  const top = new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y - 0.22, (box.min.z + box.max.z) / 2);
+  const fez = buildHat(def.chapeau);
+  const top = new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y - (def.hauteurChapeau || 0.22), (box.min.z + box.max.z) / 2);
   attach(head, fez, top, model);
-  fez.rotateZ(0.12);
-  const bag = buildBackpack();
-  const chestPos = new THREE.Vector3();
-  chest.getWorldPosition(chestPos);
-  const bodyBox = new THREE.Box3().setFromObject(model.getObjectByName('Rogue_Body'));
-  // le dos est du côté +z du monde (le modèle est tourné vers -z)
-  attach(chest, bag, new THREE.Vector3(chestPos.x, chestPos.y + 0.02, bodyBox.max.z + 0.04), model);
+  if (def.chapeau === 'fez') fez.rotateZ(0.12);
+  if (def.sac) {
+    const bag = buildBackpack();
+    const chestPos = new THREE.Vector3();
+    chest.getWorldPosition(chestPos);
+    const bodyBox = new THREE.Box3().setFromObject(model.getObjectByName(def.prefixe + '_Body'));
+    // le dos est du côté +z du monde (le modèle est tourné vers -z)
+    attach(chest, bag, new THREE.Vector3(chestPos.x, chestPos.y + 0.02, bodyBox.max.z + 0.04), model);
+  }
   A.Idle.stop();
 
   // os des bras et du buste, pour la bagarre avec le singe
@@ -188,11 +242,14 @@ export async function loadHero(url) {
     fez.position.y = fezBase.y + Math.abs(Math.sin(t * 16)) * 0.08 * lutte;
     // le pompon du tarbouche se balance avec la course
     const pompon = fez.userData.tassel;
-    pompon.rotation.x = 0.4 + Math.sin(info.phase * 0.5) * 0.3 + (info.vy > 0 ? -0.5 : 0) + Math.sin(t * 20) * 0.6 * lutte;
-    pompon.rotation.z = Math.sin(info.phase * 0.7) * 0.2;
+    if (pompon) {
+      pompon.rotation.x = 0.4 + Math.sin(info.phase * 0.5) * 0.3 + (info.vy > 0 ? -0.5 : 0) + Math.sin(t * 20) * 0.6 * lutte;
+      pompon.rotation.z = Math.sin(info.phase * 0.7) * 0.2;
+    }
   }
 
   root.userData.rig = { fez };
+  root.userData.perso = def.id;
   root.userData.pivot = pivot;
   root.userData.update = update;
   return root;
