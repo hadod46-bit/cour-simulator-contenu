@@ -5,7 +5,7 @@
 import * as THREE from '../lib/three.module.min.js';
 import { GLTFLoader } from '../lib/GLTFLoader.js';
 import { recolor } from './recolor.js';
-import { buildFez, attach } from './hero.js';
+import { buildHat, attach } from './hero.js';
 
 const SCALE = 0.5;
 const FUR = ['#a67c52', '#6b4a2e'];
@@ -97,11 +97,20 @@ export async function loadMonkey(url) {
   const r = (box.max.x - box.min.x) / 2 / SCALE * 0.92;     // demi-largeur en unités du modèle
   const head = buildMonkeyHead(r);
   attach(headBone, head, center, model);
-  const fez = buildFez();
+  // support du chapeau volé (son contenu change selon le personnage poursuivi)
+  const fez = new THREE.Group();
   attach(headBone, fez, new THREE.Vector3(center.x, box.max.y - 0.02, center.z), model);
   fez.scale.multiplyScalar(0.85);
   fez.rotateZ(-0.3);
   fez.visible = false;
+  let chapeau = null;
+  function setHat(type) {
+    if (chapeau === type) return;
+    chapeau = type;
+    fez.clear();
+    fez.add(buildHat(type));
+  }
+  setHat('fez');
   A.Idle.stop();
 
   let current = null, mode = null;
@@ -134,5 +143,6 @@ export async function loadMonkey(url) {
 
   root.userData.rig = { fez };
   root.userData.update = update;
+  root.userData.setHat = setHat;
   return root;
 }

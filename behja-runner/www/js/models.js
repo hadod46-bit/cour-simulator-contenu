@@ -860,3 +860,25 @@ export function waveCarpet(m, t) {
   for (let i = 0; i < p.count; i++) p.setY(i, b[i * 3 + 1] + Math.sin(b[i * 3 + 2] * 3 + t * 8) * 0.06 + Math.sin(b[i * 3] * 2 + t * 5) * 0.03);
   p.needsUpdate = true;
 }
+
+// Pièce de dirham (monnaie premium, rare sur la piste) : argentée à étoile verte, avec halo.
+let dirhamProto = null;
+export function buildDirham() {
+  if (!dirhamProto) {
+    const g = new THREE.Group();
+    const geo = new THREE.CylinderGeometry(0.4, 0.4, 0.09, 28);
+    geo.rotateX(Math.PI / 2);
+    const face = new THREE.MeshStandardMaterial({ map: T.coinTexture(), color: '#bfeedd', metalness: 0.6, roughness: 0.3, emissive: '#0c3d2a' });
+    const edge = new THREE.MeshStandardMaterial({ color: '#d7efe6', metalness: 0.7, roughness: 0.25 });
+    const coin = new THREE.Mesh(geo, [edge, face, face]);
+    coin.castShadow = true;
+    g.add(coin);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glowTexture(), color: '#7dffc4', blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.85 }));
+    halo.scale.setScalar(2.2);
+    g.add(halo);
+    dirhamProto = g;
+  }
+  const c = dirhamProto.clone();
+  c.userData.coin = c.children[0];
+  return c;
+}

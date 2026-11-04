@@ -21,7 +21,10 @@
 <div id="hud" hidden>
   <div class="hud-haut">
     <div class="hud-g">
-      <div class="pilule"><span class="piece"></span><b id="h-pieces">0</b></div>
+      <div class="bourses-hud">
+        <div class="pilule"><span class="piece"></span><b id="h-pieces">0</b></div>
+        <div class="pilule pilule-dirham" id="h-dirhams-box" hidden><span class="piece piece-dirham"></span><b id="h-dirhams">0</b></div>
+      </div>
       <div id="h-pouvoirs"></div>
     </div>
     <div class="hud-d">
@@ -39,14 +42,19 @@
   <div class="titre">
     <p class="ar">بهجة</p>
     <h1>Behja<span>Runner</span></h1>
-    <p class="accroche">Un singe malicieux veut voler le tarbouche de Yassine&nbsp;!</p>
+    <p class="accroche" id="m-accroche">Un singe malicieux veut voler le tarbouche de Yassine&nbsp;!</p>
   </div>
   <div class="carte carte-menu">
     <div class="stats">
       <div><small>Record</small><b id="m-record">0</b></div>
-      <div><small>Dirhams</small><b id="m-pieces">0</b></div>
+      <div><small>Rials</small><b id="m-pieces" class="m-rial">0</b></div>
+      <div><small>Dirhams</small><b id="m-dirhams" class="m-dirham">0</b></div>
     </div>
-    <button class="btn" id="b-jouer">Jouer</button>
+    <div id="m-boosts" class="boosts-menu"></div>
+    <div class="rangee-btn">
+      <button class="btn" id="b-jouer">Jouer</button>
+      <button class="btn btn-2" id="b-boutique">Boutique</button>
+    </div>
     <details class="aide">
       <summary>Comment jouer</summary>
       <ul>
@@ -55,6 +63,8 @@
         <li><b>Glisse ↓</b> pour glisser sous les tapis suspendus</li>
         <li>Évite les <b>stands</b> du souk… ou grimpe dessus par les <b>rampes</b>&nbsp;!</li>
         <li>Si tu trébuches deux fois de suite, le singe t'attrape.</li>
+        <li>Ramasse les <b>rials</b> (pièces jaunes) pour les améliorations et les boosts.</li>
+        <li>Les <b>dirhams</b> (pièces argentées) sont rares : ils débloquent des personnages et permettent de continuer une partie.</li>
       </ul>
       <p class="pouvoirs-aide">
         <span><i class="ic ic-aimant"></i>Aimant</span>
@@ -66,6 +76,27 @@
     </details>
     <button id="b-son" class="btn-mini">🔊 Son activé</button>
     <p id="m-version" class="version"></p>
+  </div>
+</section>
+
+<!-- Boutique -->
+<section id="boutique" class="ecran-boutique" hidden>
+  <div class="boutique">
+    <header>
+      <h2>Souk de Behja</h2>
+      <div class="bourses">
+        <span class="pilule"><span class="piece"></span><b class="b-rials">0</b></span>
+        <span class="pilule pilule-dirham"><span class="piece piece-dirham"></span><b class="b-dirhams">0</b></span>
+      </div>
+      <button id="b-fermer" class="b-fermer" aria-label="Fermer">✕</button>
+    </header>
+    <nav class="onglets">
+      <button data-onglet="persos">Personnages</button>
+      <button data-onglet="ameliorations">Améliorations</button>
+      <button data-onglet="boosts">Boosts</button>
+      <button data-onglet="dirhams">Dirhams</button>
+    </nav>
+    <div id="boutique-contenu" class="boutique-contenu"></div>
   </div>
 </section>
 
@@ -85,9 +116,12 @@
     <p id="f-record" class="record" hidden>Nouveau record&nbsp;!</p>
     <div class="stats">
       <div><small>Score</small><b id="f-score">0</b></div>
-      <div><small>Dirhams</small><b id="f-pieces">0</b></div>
+      <div><small>Rials</small><b id="f-pieces" class="m-rial">0</b></div>
+      <div id="f-dirhams-box" hidden><small>Dirhams</small><b id="f-dirhams" class="m-dirham">0</b></div>
       <div><small>Record</small><b id="f-meilleur">0</b></div>
     </div>
+    <button class="btn btn-dirham" id="b-continuer">Continuer · <span class="m-dirham" id="f-cout">1</span></button>
+    <p id="f-continuer-info" class="note-fin" hidden></p>
     <button class="btn" id="b-rejouer">Rejouer</button>
     <button class="btn btn-2" id="b-menu">Menu</button>
   </div>
@@ -109,7 +143,7 @@
     if (v) {
       // version en ligne : on force le rechargement de chaque fichier de cette version
       var q = '?v=' + encodeURIComponent(v), map = { imports: {} };
-      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'js/hero.js', 'js/recolor.js', 'js/monkey3d.js',
+      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'js/hero.js', 'js/recolor.js', 'js/monkey3d.js', 'js/persos.js', 'js/eco.js', 'js/shop.js',
         'lib/three.module.min.js', 'lib/three.core.min.js', 'lib/GLTFLoader.js', 'lib/BufferGeometryUtils.js']
         .forEach(function (f) { map.imports[new URL(f, location.href).href] = new URL(f + q, location.href).href; });
       var im = document.createElement('script');
