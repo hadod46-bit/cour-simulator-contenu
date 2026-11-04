@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#b5462b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Behja Runner — fuis le singe à travers les souks de Marrakech !">
+<title>Behja Runner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="jeu"></canvas>
+
+<!-- Affichage pendant la partie -->
+<div id="hud" hidden>
+  <div class="hud-haut">
+    <div class="hud-g">
+      <div class="pilule"><span class="piece"></span><b id="h-pieces">0</b></div>
+      <div id="h-pouvoirs"></div>
+    </div>
+    <div class="hud-d">
+      <div class="score"><small>Score</small><b id="h-score">0</b></div>
+      <div id="h-mult" hidden>×2</div>
+    </div>
+  </div>
+  <button id="b-pause" class="b-rond" aria-label="Pause">❚❚</button>
+  <div id="h-singe" hidden>🐒 Attention !</div>
+  <div id="h-toast" hidden></div>
+</div>
+
+<!-- Menu principal -->
+<section id="menu" class="ecran">
+  <div class="carte">
+    <div class="titre">
+      <p class="ar">بهجة</p>
+      <h1>Behja<span>Runner</span></h1>
+    </div>
+    <p class="pitch">Un singe malicieux de Jemaa el-Fna veut te voler ton tarbouche&nbsp;! Fonce à travers les souks de Marrakech.</p>
+    <div class="stats">
+      <div><small>Record</small><b id="m-record">0</b></div>
+      <div><small>Dirhams</small><b id="m-pieces">0</b></div>
+    </div>
+    <button class="btn" id="b-jouer">Jouer</button>
+    <details class="aide">
+      <summary>Comment jouer</summary>
+      <ul>
+        <li><b>Glisse ← →</b> pour changer de voie</li>
+        <li><b>Glisse ↑</b> pour sauter par-dessus les caisses</li>
+        <li><b>Glisse ↓</b> pour rouler sous les tapis suspendus</li>
+        <li>Évite les <b>stands</b> du souk… ou grimpe dessus par les <b>rampes</b>&nbsp;!</li>
+        <li>Si tu trébuches deux fois de suite, le singe t'attrape.</li>
+      </ul>
+      <p class="pouvoirs-aide">
+        <span><i class="ic ic-aimant"></i>Aimant</span>
+        <span><i class="ic ic-babouches"></i>Babouches (super saut)</span>
+        <span><i class="ic ic-tapis"></i>Tapis volant</span>
+        <span><i class="ic ic-x2"></i>Score ×2</span>
+      </p>
+      <p class="clavier">Clavier : flèches ou ZQSD · Échap = pause</p>
+    </details>
+    <button id="b-son" class="btn-mini">🔊 Son activé</button>
+  </div>
+</section>
+
+<!-- Pause -->
+<section id="pause" class="ecran" hidden>
+  <div class="carte petite">
+    <h2>Pause</h2>
+    <button class="btn" id="b-reprendre">Reprendre</button>
+    <button class="btn btn-2" id="b-quitter">Menu</button>
+  </div>
+</section>
+
+<!-- Fin de partie -->
+<section id="fin" class="ecran" hidden>
+  <div class="carte petite">
+    <h2>Le singe t'a attrapé&nbsp;!</h2>
+    <p id="f-record" class="record" hidden>Nouveau record&nbsp;!</p>
+    <div class="stats">
+      <div><small>Score</small><b id="f-score">0</b></div>
+      <div><small>Dirhams</small><b id="f-pieces">0</b></div>
+      <div><small>Record</small><b id="f-meilleur">0</b></div>
+    </div>
+    <button class="btn" id="b-rejouer">Rejouer</button>
+    <button class="btn btn-2" id="b-menu">Menu</button>
+  </div>
+</section>
+
+<script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "appId": "ma.behja.runner",
+  "appName": "Behja Runner",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#b5462b"
+  }
+}
