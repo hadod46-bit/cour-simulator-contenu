@@ -12,7 +12,7 @@ import * as M from './models.js';
 import { loadHero } from './hero.js';
 import { loadMonkey } from './monkey3d.js';
 import { PERSOS, persoParId } from './persos.js';
-import { eco, CHANCE_DIRHAM } from './eco.js';
+import { eco, CHANCE_DIRHAM, MOTO } from './eco.js';
 import { initShop } from './shop.js';
 
 const $ = id => document.getElementById(id);
@@ -185,6 +185,12 @@ loadMonkey('models/singe.glb').then(m => {
   monkeyObj = m;
   scene.add(monkeyObj);
 }).catch(e => console.warn('Singe 3D indisponible, singe de secours utilisé', e));
+// La 103 (double tape pendant la course)
+const moto = M.buildMoto();
+moto.scale.setScalar(1.35);
+moto.visible = false;
+scene.add(moto);
+let motoT = 0, cabre = 0;
 const carpet = M.buildFlyingCarpet();
 carpet.visible = false;
 scene.add(carpet);
@@ -237,6 +243,7 @@ const cam = { x: 0, y: CAM_H };
 let camIntro = 0, cadreBoutique = 0;
 
 function resetWorld(withObstacles) {
+  motoT = 0;
   for (const arr of [obstacles, powerups, decor, palms]) for (const e of arr) if (e.obj) removeObj(e.obj);
   obstacles = []; coins = []; powerups = []; decor = []; palms = [];
   for (const s of puffs) s.visible = false;
@@ -422,7 +429,7 @@ function act(d) {
 function doJump() {
   p.vy = power.babouches > 0 ? SUPER_JUMP_V : JUMP_V;
   p.airT = 0;
-  p.trick = power.babouches > 0 ? 'salto' : Math.random() < 0.3 ? 'vrille' : null;
+  p.trick = motoT > 0 ? null : power.babouches > 0 ? 'salto' : Math.random() < 0.3 ? 'vrille' : null;
   p.onGround = false; p.slide = 0; p.coyote = 0; p.jumpBuf = 0;
   Sound.jump();
 }
@@ -440,7 +447,33 @@ function crash() {
   Sound.crash(); Sound.monkey(); Sound.stopMusic();
   vibrate([60, 40, 140]);
 }
+function invoquerMoto() {
+  if (state !== 'play' || motoT > 0 || power.tapis > 0) return;
+  if (!eco.utiliserMoto()) { toast('Plus de 103 ! Achètes-en au souk'); Sound.bump(); return; }
+  motoT = MOTO.duree;
+  monkey.danger = 0; monkey.intro = 0;   // la 103 sème le singe
+  Sound.init();
+  toast('La 103 !');
+  vibrate(40);
+  for (let i = 0; i < 10; i++) puff(p.x + rand(-0.6, 0.6), p.ground + 0.3, p.z, '#d9d4cc', 0.7, 0.7, rand(-1.5, 1.5), rand(0.5, 1.5), rand(-1, 0), false);
+}
+function casserMoto(o) {
+  motoT = 0;
+  p.ghost = 1.5; p.ignore = o; p.ignoreT = 1.5;
+  // l'obstacle percuté vole en éclats (avec sa rampe s'il en a une)
+  const vise = obstacles.filter(x => x === o || (x.lane === o.lane && x.type === 'rampe' && Math.abs(x.z1 - o.z0) < 0.5));
+  for (const x of vise) {
+    for (let i = 0; i < 14; i++) puff(x.x + rand(-1, 1), rand(0.3, 2.4), Math.max(x.z0, p.z + 1) + rand(0, 2), i % 2 ? '#c9a77c' : '#8b5a2b', 0.9, 0.8, rand(-3, 3), rand(1, 4), rand(1, 4), false);
+  }
+  obstacles = prune(obstacles, x => !vise.includes(x));
+  shake = 0.5;
+  Sound.crash();
+  vibrate([40, 30, 60]);
+  toast('La 103 a cassé !');
+  for (let i = 0; i < 16; i++) puff(p.x + rand(-0.8, 0.8), p.y + rand(0.2, 1.4), p.z, i % 3 ? '#8a8a8a' : '#4a4a4a', 0.9, 0.9, rand(-2, 2), rand(0.5, 2.5), rand(-2, 1), false);
+}
 function onHit(o) {
+  if (motoT > 0) { casserMoto(o); return; }
   const changing = Math.abs(p.x - LANES[p.lane]) > 0.2;
   if (changing && o.lane === p.lane && p.lane !== p.laneFrom) {
     p.lane = p.laneFrom; p.ignore = o; p.ignoreT = 0.5;
@@ -482,7 +515,11 @@ function update(dt) {
   if (state === 'pause') return;
   const playing = state === 'play';
   if (playing) speed = Math.min(SPEED_MAX, SPEED0 + time * 0.11);
-  const sp = state === 'dying' || state === 'over' || state === 'menu' ? 0 : speed;
+  if (motoT > 0 && playing) {
+    motoT = Math.max(0, motoT - dt);
+    if (motoT === 0) for (let i = 0; i < 8; i++) puff(p.x + rand(-0.6, 0.6), p.y + 0.4, p.z, '#d9d4cc', 0.7, 0.6, rand(-1, 1), rand(0.5, 1.2), 0, false);
+  }
+  const sp = state === 'dying' || state === 'over' || state === 'menu' ? 0 : speed * (motoT > 0 ? 1.12 : 1);
 
   p.z += sp * dt;
   p.phase += dt * (sp > 0 ? 5 + sp * 0.33 : 0);
@@ -726,6 +763,7 @@ function syncScene(dt) {
   if (state === 'menu') mode = 'idle';
   else if (state === 'dying' || state === 'over') mode = dyingT < BOND ? 'hit' : dyingT < VOL ? 'struggle' : 'sitdown';
   else if (flying) mode = 'fly';
+  else if (motoT > 0) mode = 'ride';
   else if (p.slide > 0) mode = 'slide';
   else if (air) mode = 'jump';
   else if (p.hitT > 0) mode = 'hit';
@@ -749,6 +787,20 @@ function syncScene(dt) {
   const eased = prog * prog * (3 - 2 * prog);
   pv.rotation.y = p.trick === 'vrille' ? eased * Math.PI * 2 : 0;
   pv.rotation.x = p.trick === 'salto' ? -eased * Math.PI * 2 : 0;
+  // la 103 : roues qui tournent, cabrage au saut, le pilote se baisse en glissant
+  moto.visible = motoT > 0 && (state === 'play' || state === 'pause');
+  Sound.moteur(moto.visible && state === 'play', speed);
+  if (moto.visible) {
+    cabre += ((air ? 0.3 : 0) - cabre) * Math.min(1, dt * 8);
+    moto.position.set(p.x, p.y, -p.z);
+    moto.rotation.set(cabre, 0, runner.rotation.z);
+    const tourne = (state === 'play' ? speed * 1.12 : 0) * dt / (0.32 * 1.35);
+    for (const r of moto.userData.roues) r.rotation.x -= tourne;
+    const baisse = p.slide > 0 ? 1 : 0;
+    runner.position.set(p.x, p.y + 0.55 - 0.35 * baisse + Math.sin(time * 40) * 0.008, -p.z - 0.3 + 0.1 * baisse);
+    runner.rotation.x = cabre;
+    pv.rotation.x = -0.6 * baisse;
+  }
   carpet.visible = flying;
   if (flying) { carpet.position.set(p.x, p.y + 0.08, -p.z); M.waveCarpet(carpet, time); }
 
@@ -836,7 +888,7 @@ function syncScene(dt) {
 const ui = {
   hud: $('hud'), menu: $('menu'), pause: $('pause'), fin: $('fin'),
   pieces: $('h-pieces'), score: $('h-score'), mult: $('h-mult'), pouvoirs: $('h-pouvoirs'),
-  singe: $('h-singe'), toast: $('h-toast'), danger: $('danger'), dirhams: $('h-dirhams'), dirhamsBox: $('h-dirhams-box')
+  singe: $('h-singe'), toast: $('h-toast'), danger: $('danger'), dirhams: $('h-dirhams'), dirhamsBox: $('h-dirhams-box'), moto: $('b-moto')
 };
 let last = { score: -1, pieces: -1, dirhams: -1, pw: '' };
 let toastTimer = null;
@@ -856,6 +908,9 @@ function updateHud() {
   ui.singe.hidden = !danger;
   ui.danger.classList.toggle('on', danger);
   let html = '';
+  if (motoT > 0) html += `<div class="pouvoir"><span>La 103</span><span class="barre"><i style="width:${(motoT / MOTO.duree) * 100}%"></i></span></div>`;
+  ui.moto.hidden = !(state === 'play' && motoT === 0 && eco.motos > 0);
+  if (!ui.moto.hidden && last.motos !== eco.motos) { ui.moto.textContent = `103 ×${eco.motos}`; last.motos = eco.motos; }
   for (const k of ['aimant', 'babouches', 'tapis']) {
     if (power[k] > 0) html += `<div class="pouvoir"><span>${NOMS[k]}</span><span class="barre"><i style="width:${(power[k] / powerMax[k]) * 100}%"></i></span></div>`;
   }
@@ -909,6 +964,8 @@ function startGame() {
   if (boosts.includes('trombe')) setTimeout(() => { if (state === 'play') activatePower('tapis', 6); }, fromMenu ? 1100 : 200);
   if (boosts.includes('aimantDepart')) activatePower('aimant', 15);
   toast(boosts.length ? 'Boost activé !' : 'Fuis le singe !');
+  const astuces = store.get('astuceMoto', 0);
+  if (eco.motos > 0 && astuces < 3) { store.set('astuceMoto', astuces + 1); setTimeout(() => { if (state === 'play') toast('Tape 2 fois : la 103 !'); }, 3500); }
 }
 function pauseGame() {
   if (state !== 'play') return;
@@ -975,6 +1032,7 @@ function continuer() {
   toast('C\'est reparti !');
 }
 $('b-continuer').addEventListener('click', continuer);
+$('b-moto').addEventListener('click', invoquerMoto);
 
 $('b-jouer').addEventListener('click', startGame);
 $('b-rejouer').addEventListener('click', startGame);
@@ -986,7 +1044,8 @@ $('b-son').addEventListener('click', () => { Sound.init(); Sound.setOn(!Sound.on
 
 // ---------------------------------------------------------------- contrôles (glissements + clavier)
 let swipe = null;
-canvas.addEventListener('pointerdown', e => { swipe = { x: e.clientX, y: e.clientY, id: e.pointerId, used: false }; });
+let derniereTape = 0;
+canvas.addEventListener('pointerdown', e => { swipe = { x: e.clientX, y: e.clientY, id: e.pointerId, used: false, t: performance.now() }; });
 canvas.addEventListener('pointermove', e => {
   if (!swipe || swipe.used || e.pointerId !== swipe.id) return;
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
@@ -996,7 +1055,14 @@ canvas.addEventListener('pointermove', e => {
   if (Math.abs(dx) > Math.abs(dy)) act(dx > 0 ? 'droite' : 'gauche'); else act(dy > 0 ? 'bas' : 'haut');
 });
 const endSwipe = () => { swipe = null; };
-canvas.addEventListener('pointerup', endSwipe);
+// une tape = appui bref sans glissement ; deux tapes rapprochées = la 103
+canvas.addEventListener('pointerup', e => {
+  if (swipe && !swipe.used && e.pointerId === swipe.id && performance.now() - swipe.t < 260) {
+    const now = performance.now();
+    if (now - derniereTape < 350) { derniereTape = 0; invoquerMoto(); } else derniereTape = now;
+  }
+  swipe = null;
+});
 canvas.addEventListener('pointercancel', endSwipe);
 window.addEventListener('keydown', e => {
   const k = e.key;
@@ -1009,6 +1075,7 @@ window.addEventListener('keydown', e => {
     ArrowUp: 'haut', z: 'haut', w: 'haut', Z: 'haut', W: 'haut', ' ': 'haut',
     ArrowDown: 'bas', s: 'bas', S: 'bas'
   };
+  if (k === 'm' || k === 'M') { invoquerMoto(); return; }
   if (map[k]) { act(map[k]); e.preventDefault(); }
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
@@ -1058,6 +1125,6 @@ window.BEHJA = {
   get player() { return p; }, get obstacles() { return obstacles; }, act, startGame, power,
   step(dt) { update(dt); }, setInvincible(v) { p.ghost = v ? 1e9 : 0; }, setTime(t) { time = t; },
   get quality() { return quality; }, setQuality(q) { quality = q; applyQuality(); },
-  get dyingT() { return dyingT; }, crash() { crash(); }, eco, continuer, boutique, afficherPerso,
+  get dyingT() { return dyingT; }, crash() { crash(); }, eco, continuer, boutique, afficherPerso, invoquerMoto, get motoT() { return motoT; },
   renderer
 };

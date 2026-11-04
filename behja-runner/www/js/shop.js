@@ -1,5 +1,5 @@
 // Boutique : personnages (dirhams), améliorations et boosts (rials), dirhams (packs et échange).
-import { eco, AMELIORATIONS, NIVEAU_MAX, BOOSTS, PACKS, ECHANGE, BONUS_PAR_NIVEAU } from './eco.js';
+import { eco, AMELIORATIONS, NIVEAU_MAX, BOOSTS, PACKS, ECHANGE, BONUS_PAR_NIVEAU, MOTO } from './eco.js';
 import { PERSOS } from './persos.js';
 
 const R = n => `<span class="m-rial">${n}</span>`;
@@ -35,7 +35,10 @@ export function initShop({ onPreview, onChange, toast, son }) {
   }
 
   function boosts() {
-    return `<p class="b-intro">Les boosts activés sont utilisés au début de la prochaine partie.</p>` + BOOSTS.map(b => {
+    const moto = `<div class="ligne ligne-moto"><div><b>La 103</b> <span class="stock">×${eco.motos}</span>
+        <small>Tape 2 fois sur l'écran pendant la course pour l'enfourcher : ${MOTO.duree} s plus vite, et elle te protège d'une chute.</small></div>
+        <button class="btn-petit" data-action="moto" ${eco.rials < MOTO.prix ? 'disabled' : ''}>Acheter ${R(MOTO.prix)}</button></div>`;
+    return moto + `<p class="b-intro">Les boosts activés sont utilisés au début de la prochaine partie.</p>` + BOOSTS.map(b => {
       const stock = eco.boosts[b.id];
       const actif = stock > 0 ? `<label class="interrupteur"><input type="checkbox" data-action="armer" data-id="${b.id}" ${eco.armes[b.id] ? 'checked' : ''}> activé</label>` : '';
       return `<div class="ligne"><div><b>${b.nom}</b> <span class="stock">×${stock}</span><small>${b.desc}</small>${actif}</div>
@@ -80,6 +83,7 @@ export function initShop({ onPreview, onChange, toast, son }) {
       case 'ameliorer': ok = eco.ameliorer(id); if (ok) toast('Amélioration achetée !'); break;
       case 'boost': ok = eco.acheterBoost(id); if (ok) toast('Boost acheté !'); break;
       case 'echanger': ok = eco.echanger(); if (ok) toast('+1 dirham !'); break;
+      case 'moto': ok = eco.acheterMoto(); if (ok) toast('Une 103 de plus !'); break;
       case 'armer': eco.armes[id] = t.checked; eco.save(); onChange(); return;
       default: return;
     }

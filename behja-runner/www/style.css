@@ -308,3 +308,12 @@ h2 { margin: 0 0 12px; font-size: 26px; color: var(--terre); }
 .bonus { font-size: 11px; font-weight: 800; color: #fff; background: var(--terre); border-radius: 6px; padding: 1px 5px; }
 .interrupteur { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--vert); }
 .note { font-size: 12px; color: #8a5a3a; line-height: 1.4; margin: 6px 2px; }
+
+/* bouton de la 103 (en plus de la double tape) */
+.b-moto {
+  pointer-events: auto; position: absolute; left: 12px; bottom: calc(var(--bas) + 18px);
+  border: 2px solid rgba(255,255,255,.85); border-radius: 999px; padding: 8px 14px 8px 38px;
+  background: rgba(31,95,174,.85) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 20'%3E%3Ccircle cx='6' cy='14' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Ccircle cx='26' cy='14' r='5' fill='none' stroke='white' stroke-width='2'/%3E%3Cpath d='M6 14 L13 8 L20 8 L26 14 M20 8 L22 2 L26 2' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") no-repeat 10px center / 24px 15px;
+  color: #fff; font: inherit; font-weight: 800; font-size: 14px;
+}
+.ligne-moto { background: #e3eefb; }

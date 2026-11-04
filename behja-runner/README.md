@@ -9,7 +9,8 @@ le tarbouche du héros : il faut fuir en esquivant les stands du souk.
 |---|---|
 | Glisser ← / → | Changer de voie |
 | Glisser ↑ | Sauter (caisses d'oranges, tapis roulés, tajines) |
-| Glisser ↓ | Rouler sous les tapis suspendus |
+| Glisser ↓ | Glisser sous les tapis suspendus |
+| Taper 2 fois | Enfourcher **la 103** (mobylette) |
 
 - Les **stands** bloquent la voie, mais on peut grimper dessus par les **rampes en bois**.
 - Les **charrettes** de jus d'orange roulent vers toi : une clochette prévient de leur arrivée.
@@ -17,6 +18,12 @@ le tarbouche du héros : il faut fuir en esquivant les stands du souk.
   Une deuxième erreur dans les 5 secondes, et il t'attrape.
 - Bonus : **Aimant** (attire les dirhams), **Babouches** (super saut, permet de sauter sur les stands),
   **Tapis volant** (vol au-dessus du souk), **×2** (score doublé).
+
+### La 103
+
+Une double tape sur l'écran (ou le bouton « 103 » en bas à gauche) fait apparaître **la 103**, la mobylette
+de quartier : 30 secondes, un peu plus rapide, et elle **encaisse une chute** (l'obstacle vole en éclats et la
+partie continue). 3 sont offertes, puis 250 rials pièce dans la boutique.
 
 ### Monnaies et boutique
 
