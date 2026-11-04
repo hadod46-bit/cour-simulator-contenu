@@ -30,6 +30,18 @@ l'application et la publie dans les *Releases* du dépôt :
 2. Ouvrir le fichier et autoriser « l'installation d'applications inconnues » pour le navigateur.
 3. Les versions suivantes s'installent par-dessus l'ancienne : record et dirhams sont conservés.
 
+### Mises à jour automatiques
+
+Une fois l'APK installé, **le jeu se met à jour tout seul** : au lancement, l'application regarde si une
+version plus récente est publiée sur GitHub Pages
+(`https://hadod46-bit.github.io/cour-simulator-contenu/behja-runner/www/`) et l'ouvre directement.
+Hors connexion, elle lance la version incluse dans l'APK. Le menu affiche « Version … · en ligne » ou
+« · intégrée ».
+
+Pour publier une mise à jour du jeu : modifier `www/`, augmenter le numéro dans `www/version.json`, puis
+fusionner dans `main` (GitHub Pages republie le site). Seules les modifications de la partie Android
+(icône, permissions, configuration Capacitor) demandent de réinstaller un nouvel APK.
+
 L'APK est signé avec une clé **publique** (`android/app/behja-debug.keystore`, mot de passe `android`)
 qui sert uniquement à l'installation directe. Pour publier sur le Play Store, il faut créer sa propre clé
 privée et ne jamais la mettre dans le dépôt.

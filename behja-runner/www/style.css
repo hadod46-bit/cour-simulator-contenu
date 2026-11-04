@@ -224,3 +224,4 @@ h2 { margin: 0 0 12px; font-size: 26px; color: var(--terre); }
   color: #fff8ea; font-weight: 700; font-size: 15px;
   text-shadow: 0 2px 0 var(--terre-f), 0 0 8px rgba(0,0,0,.35);
 }
+.version { margin: 4px 0 0; font-size: 11px; color: #a07a5a; }

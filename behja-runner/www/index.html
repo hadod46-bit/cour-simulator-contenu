@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css" id="css">
 </head>
 <body>
 <canvas id="jeu"></canvas>
@@ -65,6 +65,7 @@
       <p class="clavier">Clavier : flèches ou ZQSD · Échap = pause</p>
     </details>
     <button id="b-son" class="btn-mini">🔊 Son activé</button>
+    <p id="m-version" class="version"></p>
   </div>
 </section>
 
@@ -92,6 +93,55 @@
   </div>
 </section>
 
-<script type="module" src="js/main.js"></script>
+<script>
+/*
+ * Lanceur et mise à jour automatique.
+ * Dans l'application Android, le jeu embarqué regarde d'abord si une version plus récente
+ * est publiée sur le site GitHub Pages ; si oui il l'ouvre, sinon (hors connexion,
+ * site injoignable) il lance la version incluse dans l'APK.
+ */
+(function () {
+  var SITE = 'https://hadod46-bit.github.io/cour-simulator-contenu/behja-runner/www/';
+  var params = new URLSearchParams(location.search);
+  var embarque = location.hostname === 'localhost';
+
+  function demarrer(v) {
+    if (v) {
+      // version en ligne : on force le rechargement de chaque fichier de cette version
+      var q = '?v=' + encodeURIComponent(v), map = { imports: {} };
+      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'lib/three.module.min.js', 'lib/three.core.min.js']
+        .forEach(function (f) { map.imports[new URL(f, location.href).href] = new URL(f + q, location.href).href; });
+      var im = document.createElement('script');
+      im.type = 'importmap';
+      im.textContent = JSON.stringify(map);
+      document.head.appendChild(im);
+      document.getElementById('css').href = 'style.css' + q;
+    }
+    import('./js/main.js').catch(function (e) {
+      // si la version en ligne ne se charge pas, on revient à la version embarquée
+      if (!embarque) console.error(e);
+    });
+  }
+
+  if (embarque && !params.has('local')) {
+    var dejaEssaye = false;
+    try { dejaEssaye = sessionStorage.getItem('behja.essai') === '1'; sessionStorage.setItem('behja.essai', '1'); } catch (e) { /* ignoré */ }
+    if (!dejaEssaye && navigator.onLine !== false) {
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 3000);
+      fetch(SITE + 'version.json?t=' + Date.now(), { cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (j) {
+          clearTimeout(minuteur);
+          if (!j || !j.version) throw new Error('version absente');
+          location.replace(SITE + 'index.html?v=' + encodeURIComponent(j.version));
+        })
+        .catch(function () { clearTimeout(minuteur); demarrer(''); });
+      return;
+    }
+  }
+  demarrer(params.get('v') || '');
+})();
+</script>
 </body>
 </html>

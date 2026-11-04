@@ -4,5 +4,11 @@
   "webDir": "www",
   "android": {
     "backgroundColor": "#b5462b"
+  },
+  "server": {
+    "allowNavigation": [
+      "hadod46-bit.github.io"
+    ],
+    "errorPath": "index.html"
   }
 }

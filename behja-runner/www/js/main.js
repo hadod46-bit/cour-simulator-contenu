@@ -882,9 +882,14 @@ resetWorld(false);
 refreshMenu();
 requestAnimationFrame(frame);
 
-if ('serviceWorker' in navigator && location.protocol === 'https:' && !window.Capacitor) {
+// Cache hors ligne pour la version en ligne (navigateur ou application).
+if ('serviceWorker' in navigator && location.protocol === 'https:' && location.hostname !== 'localhost') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+// Numéro de version affiché dans le menu (« en ligne » = mise à jour automatique active).
+fetch('version.json', { cache: 'no-store' }).then(r => r.json()).then(j => {
+  $('m-version').textContent = `Version ${j.version} · ${location.hostname === 'localhost' ? 'intégrée' : 'en ligne'}`;
+}).catch(() => {});
 
 // Accès pour les tests automatisés.
 window.BEHJA = {
