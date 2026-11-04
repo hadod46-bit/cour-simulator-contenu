@@ -56,7 +56,9 @@ behja-runner/
 │   ├── js/main.js        logique (physique, génération du niveau), scène 3D, caméra, jour/nuit
 │   ├── js/models.js      modèles 3D : stands, rampes, obstacles, décor, coureur et singe animés
 │   ├── js/textures.js    textures dessinées par programme (façades, zellige, tapis, ciel…)
+│   ├── js/hero.js        Yassine animé (modèle 3D à squelette, tarbouche et sac ajoutés)
 │   ├── js/audio.js       musique et bruitages synthétisés
+│   ├── models/           modèle 3D du héros (glTF)
 │   ├── lib/              Three.js (moteur 3D, licence MIT), copié pour fonctionner sans réseau
 │   └── icons/
 ├── android/              projet Android natif (Capacitor)
@@ -84,3 +86,9 @@ cd android && ./gradlew assembleRelease   # nécessite le SDK Android (ou ouvrir
 
 node tools/generer-icones.js   # régénère les icônes (nécessite playwright)
 ```
+
+## Crédits
+
+- Personnage de Yassine : basé sur le pack « KayKit Adventurers » de Kay Lousberg
+  (www.kaylousberg.com), licence CC0 — recoloré, armes retirées, tarbouche et sac ajoutés.
+- Moteur 3D : Three.js (licence MIT).

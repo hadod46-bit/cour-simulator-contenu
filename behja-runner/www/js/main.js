@@ -9,6 +9,7 @@ import { clamp, lerp, rand, randInt, pick, shuffle, hash, mod, smooth, hexRgb, m
 import { Sound } from './audio.js';
 import * as T from './textures.js';
 import * as M from './models.js';
+import { loadHero } from './hero.js';
 
 const $ = id => document.getElementById(id);
 
@@ -144,8 +145,14 @@ scene.add(coinMesh);
 const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(1, 1, 1);
 
 // Personnages
-const runner = M.buildRunner();
+let runner = M.buildRunner();   // personnage de secours, remplacé dès que le modèle animé est chargé
 scene.add(runner);
+loadHero('models/yassine.glb').then(h => {
+  h.userData.rig.fez.visible = runner.userData.rig.fez.visible;
+  scene.remove(runner);
+  runner = h;
+  scene.add(runner);
+}).catch(e => console.warn('Modèle 3D indisponible, personnage de secours utilisé', e));
 const monkeyObj = M.buildMonkey();
 scene.add(monkeyObj);
 const carpet = M.buildFlyingCarpet();
@@ -383,6 +390,7 @@ const vibrate = pattern => { try { if (navigator.vibrate) navigator.vibrate(patt
 function stumble() {
   if (monkey.danger > 0) { crash(); return; }
   monkey.danger = 5; shake = 0.35;
+  p.hitT = 0.45;
   Sound.bump(); Sound.monkey(); vibrate(70);
 }
 function crash() {
@@ -528,7 +536,7 @@ function update(dt) {
   const mg = groundAt(monkey.x, p.z - monkey.dist, 99);
   if (state === 'dying') {
     const k = clamp(dyingT / 0.55, 0, 1);
-    monkey.y = k < 1 ? lerp(mg, p.y + 0.6, k) + Math.sin(k * Math.PI) * 1.6 : p.y + 0.6;
+    monkey.y = k < 1 ? lerp(mg, p.y + 0.3, k) + Math.sin(k * Math.PI) * 1.4 : p.y + 0.3;
   } else monkey.y += (mg - monkey.y) * Math.min(1, dt * 10);
   if (state === 'dying' && dyingT > 1.6) gameOver();
 
@@ -660,11 +668,15 @@ function syncScene(dt) {
   else if (flying) mode = 'fly';
   else if (p.slide > 0) mode = 'slide';
   else if (air) mode = 'jump';
+  else if (p.hitT > 0) mode = 'hit';
+  p.hitT = Math.max(0, (p.hitT || 0) - dt);
   runner.position.set(p.x, p.y + (flying ? 0.15 : 0), -p.z);
   runner.rotation.z = state === 'dying' ? 0 : -clamp((LANES[p.lane] - p.x) * 0.12, -0.25, 0.25);
-  runner.rotation.x = mode === 'fall' ? 0.25 : 0;
+  const animated = !!runner.userData.update;
+  runner.rotation.x = mode === 'fall' && !animated ? 0.25 : 0;
   runner.visible = !(p.ghost > 0 && p.ghost < 1e8 && Math.floor(time * 12) % 2 === 0);
-  M.animateRunner(runner, mode, p.phase, dt, { vy: p.vy, time });
+  if (animated) runner.userData.update(mode, dt, { speed: state === 'play' ? speed : 15, vy: p.vy, phase: p.phase });
+  else M.animateRunner(runner, mode === 'hit' ? 'run' : mode, p.phase, dt, { vy: p.vy, time });
   // figures pendant le saut
   const pv = runner.userData.pivot;
   runner.rotation.y = Math.PI * (1 - smooth(0.1, 0.55, camIntro));   // de face au menu, demi-tour au départ
@@ -680,7 +692,9 @@ function syncScene(dt) {
   monkeyObj.visible = lerp(3.9, CAM_BACK, smooth(0, 1, camIntro)) - monkey.dist > 2.0;
   const grab = state === 'dying' && dyingT > 0.55 || state === 'over';
   if (grab) {
-    monkeyObj.position.set(p.x, p.y + 0.55, -p.z + 0.32);
+    // avec le personnage animé, Yassine tombe en arrière : le singe s'assoit sur lui, le tarbouche sur la tête
+    if (runner.userData.update) monkeyObj.position.set(p.x, p.y + 0.3, -p.z + 1.0);
+    else monkeyObj.position.set(p.x, p.y + 0.55, -p.z + 0.32);
     runner.userData.rig.fez.visible = false;
     monkeyObj.userData.rig.fez.visible = true;
   } else {
