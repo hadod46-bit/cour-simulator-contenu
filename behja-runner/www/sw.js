@@ -1,6 +1,8 @@
 // Cache hors ligne pour la version web (PWA) de Behja Runner.
-const CACHE = 'behja-runner-v1';
-const FICHIERS = ['./', './index.html', './style.css', './game.js', './manifest.webmanifest',
+const CACHE = 'behja-runner-v2';
+const FICHIERS = ['./', './index.html', './style.css', './manifest.webmanifest',
+  './js/main.js', './js/models.js', './js/textures.js', './js/audio.js', './js/util.js',
+  './lib/three.module.min.js', './lib/three.core.min.js',
   './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

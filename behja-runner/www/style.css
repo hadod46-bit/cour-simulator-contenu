@@ -36,6 +36,17 @@ canvas#jeu {
   touch-action: none;
 }
 
+#vignette, #danger {
+  position: fixed; inset: 0; pointer-events: none;
+}
+#vignette { background: radial-gradient(ellipse at 50% 55%, rgba(40,15,5,0) 55%, rgba(40,15,5,.38) 100%); }
+#danger {
+  background: radial-gradient(ellipse at 50% 50%, rgba(176,32,42,0) 45%, rgba(176,32,42,.45) 100%);
+  opacity: 0; transition: opacity .25s;
+}
+#danger.on { opacity: 1; animation: danger .5s ease-in-out infinite alternate; }
+@keyframes danger { from { opacity: .55; } to { opacity: 1; } }
+
 /* ---------- HUD ---------- */
 #hud {
   position: fixed;

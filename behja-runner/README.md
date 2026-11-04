@@ -38,10 +38,14 @@ privée et ne jamais la mettre dans le dépôt.
 
 ```
 behja-runner/
-├── www/                  le jeu (HTML + Canvas 2D, sans dépendance, fonctionne hors ligne)
+├── www/                  le jeu (HTML + WebGL, fonctionne hors ligne)
 │   ├── index.html        menus et affichage
 │   ├── style.css
-│   ├── game.js           moteur : rendu pseudo-3D, physique, génération du niveau, sons
+│   ├── js/main.js        logique (physique, génération du niveau), scène 3D, caméra, jour/nuit
+│   ├── js/models.js      modèles 3D : stands, rampes, obstacles, décor, coureur et singe animés
+│   ├── js/textures.js    textures dessinées par programme (façades, zellige, tapis, ciel…)
+│   ├── js/audio.js       musique et bruitages synthétisés
+│   ├── lib/              Three.js (moteur 3D, licence MIT), copié pour fonctionner sans réseau
 │   └── icons/
 ├── android/              projet Android natif (Capacitor)
 ├── tools/                génération des icônes et de l'écran de démarrage
@@ -50,14 +54,17 @@ behja-runner/
 
 Un cycle jour → coucher de soleil → nuit étoilée (lanternes allumées) se déroule pendant la partie.
 
-Tout est dessiné par programme (aucune image ni aucun son externe) : la musique (darbouka,
+Le rendu est en vraie 3D (Three.js / WebGL) : ombres douces, anticrénelage, personnages au style
+dessin animé. Si le téléphone peine, la qualité baisse automatiquement (résolution, ombres).
+
+Tout est créé par programme (aucune image ni aucun son externe) : la musique (darbouka,
 qraqeb, guembri) est synthétisée en direct avec la Web Audio API.
 
 ## Développer
 
 ```bash
 cd behja-runner
-npx serve www              # ou n'importe quel serveur statique, puis ouvrir le jeu dans le navigateur
+npx serve www              # un serveur est nécessaire (modules JavaScript), puis ouvrir le jeu dans le navigateur
 
 npm install
 npx cap sync android       # copie www/ dans le projet Android
