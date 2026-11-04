@@ -109,7 +109,7 @@
     if (v) {
       // version en ligne : on force le rechargement de chaque fichier de cette version
       var q = '?v=' + encodeURIComponent(v), map = { imports: {} };
-      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'js/hero.js', 'js/recolor.js',
+      ['js/main.js', 'js/models.js', 'js/textures.js', 'js/audio.js', 'js/util.js', 'js/hero.js', 'js/recolor.js', 'js/monkey3d.js',
         'lib/three.module.min.js', 'lib/three.core.min.js', 'lib/GLTFLoader.js', 'lib/BufferGeometryUtils.js']
         .forEach(function (f) { map.imports[new URL(f, location.href).href] = new URL(f + q, location.href).href; });
       var im = document.createElement('script');

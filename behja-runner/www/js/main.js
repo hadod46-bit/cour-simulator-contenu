@@ -10,6 +10,7 @@ import { Sound } from './audio.js';
 import * as T from './textures.js';
 import * as M from './models.js';
 import { loadHero } from './hero.js';
+import { loadMonkey } from './monkey3d.js';
 
 const $ = id => document.getElementById(id);
 
@@ -155,10 +156,16 @@ loadHero('models/yassine.glb').then(h => {
   runner = h;
   scene.add(runner);
 }).catch(e => console.warn('Modèle 3D indisponible, personnage de secours utilisé', e));
-const monkeyObj = M.buildMonkey();
+let monkeyObj = M.buildMonkey();   // singe de secours, remplacé par le modèle animé
 monkeyObj.scale.setScalar(0.75);
 const camDir = new THREE.Vector3();
 scene.add(monkeyObj);
+loadMonkey('models/singe.glb').then(m => {
+  m.userData.rig.fez.visible = monkeyObj.userData.rig.fez.visible;
+  scene.remove(monkeyObj);
+  monkeyObj = m;
+  scene.add(monkeyObj);
+}).catch(e => console.warn('Singe 3D indisponible, singe de secours utilisé', e));
 const carpet = M.buildFlyingCarpet();
 carpet.visible = false;
 scene.add(carpet);
@@ -534,11 +541,11 @@ function update(dt) {
     const target = monkey.danger > 0 || monkey.intro > 0 ? 2.1 : 13;
     monkey.dist += (target - monkey.dist) * Math.min(1, dt * (target < monkey.dist ? 4 : 0.5));
   } else if (state === 'menu') {
-    monkey.dist = 1.6;   // assis derrière Yassine, il regarde par-dessus son épaule
+    monkey.dist = -0.6;   // assis à côté de Yassine, l'air malicieux
   } else if (state === 'dying') {
     monkey.dist = lerp(monkey.startDist, 0.3, clamp(dyingT / BOND, 0, 1));
   }
-  if (!(monkey.wait > 0)) monkey.x += ((state === 'menu' ? p.x + 0.9 : p.x) - monkey.x) * Math.min(1, dt * (state === 'play' ? 3 : 5));
+  if (!(monkey.wait > 0)) monkey.x += ((state === 'menu' ? p.x + 1.45 : p.x) - monkey.x) * Math.min(1, dt * (state === 'play' ? 3 : 5));
   monkey.phase += dt * (sp > 0 ? 6 + sp * 0.3 : 12);
   const mg = groundAt(monkey.x, p.z - monkey.dist, 99);
   if (state === 'dying') {
@@ -704,7 +711,7 @@ function syncScene(dt) {
   const capture = state === 'dying' || state === 'over';
   const assis = state === 'menu' || monkey.wait > 0;
   let mmode = assis ? 'sit' : (monkey.danger > 0 || monkey.intro > 0) ? 'chase' : 'gallop';
-  monkeyObj.rotation.y = assis ? Math.PI * 0.85 : 0;
+  monkeyObj.rotation.y = assis ? Math.PI * 1.1 : 0;
   if (capture && dyingT >= BOND) {
     const yaw = runner.rotation.y;
     const dos = new THREE.Vector3(p.x + Math.sin(yaw) * 0.32, p.y + 0.95, -p.z + Math.cos(yaw) * 0.32);
@@ -713,7 +720,7 @@ function syncScene(dt) {
       monkeyObj.position.copy(dos);
       monkeyObj.position.y += Math.abs(Math.sin(dyingT * 14)) * 0.06;
       monkeyObj.rotation.y = yaw;
-      mmode = 'grab';
+      mmode = 'tug';
     } else {
       // il a volé le tarbouche : il saute à terre et le brandit pour narguer Yassine
       runner.userData.rig.fez.visible = false;
@@ -723,15 +730,16 @@ function syncScene(dt) {
       monkeyObj.position.lerpVectors(dos, sol, k);
       monkeyObj.position.y += Math.sin(k * Math.PI) * 0.9;
       monkeyObj.rotation.y = lerp(yaw, Math.PI * 0.8, k);
-      mmode = k < 1 ? 'chase' : 'grab';
+      mmode = k < 1 ? 'leap' : 'cheer';
     }
   } else if (capture) {
     monkeyObj.position.set(monkey.x, monkey.y, -mz);
-    mmode = 'chase';
+    mmode = 'leap';
   } else {
     monkeyObj.position.set(monkey.x, monkey.y, -mz);
   }
-  M.animateMonkey(monkeyObj, mmode, monkey.phase, dt);
+  if (monkeyObj.userData.update) monkeyObj.userData.update(mmode, dt);
+  else M.animateMonkey(monkeyObj, mmode === 'leap' ? 'chase' : mmode === 'tug' || mmode === 'cheer' ? 'grab' : mmode, monkey.phase, dt);
   // visible seulement s'il est bien devant la caméra (jamais collé à l'objectif)
   camera.getWorldDirection(camDir);
   monkeyObj.visible = tmpV.copy(monkeyObj.position).sub(camera.position).dot(camDir) > (camIntro < 1 ? 2.6 : 1.6);
@@ -815,7 +823,7 @@ function startGame() {
   Sound.init();
   const fromMenu = state === 'menu';
   resetWorld(true);
-  if (fromMenu) { monkey.dist = 1.6; monkey.x = p.x + 0.9; monkey.wait = 0.7; }   // le singe part de derrière Yassine
+  if (fromMenu) { monkey.dist = -0.6; monkey.x = p.x + 1.45; monkey.wait = 0.7; }   // le singe reste assis, Yassine s'élance, puis il le rattrape hors champ
   state = 'play';
   show(null);
   ui.hud.hidden = false;

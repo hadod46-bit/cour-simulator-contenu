@@ -57,6 +57,7 @@ behja-runner/
 │   ├── js/models.js      modèles 3D : stands, rampes, obstacles, décor, coureur et singe animés
 │   ├── js/textures.js    textures dessinées par programme (façades, zellige, tapis, ciel…)
 │   ├── js/hero.js        Yassine animé (modèle 3D à squelette, tarbouche et sac ajoutés)
+│   ├── js/monkey3d.js    le singe magot animé (même pack, transformé en macaque)
 │   ├── js/audio.js       musique et bruitages synthétisés
 │   ├── models/           modèle 3D du héros (glTF)
 │   ├── lib/              Three.js (moteur 3D, licence MIT), copié pour fonctionner sans réseau
@@ -91,4 +92,6 @@ node tools/generer-icones.js   # régénère les icônes (nécessite playwright)
 
 - Personnage de Yassine : basé sur le pack « KayKit Adventurers » de Kay Lousberg
   (www.kaylousberg.com), licence CC0 — recoloré, armes retirées, tarbouche et sac ajoutés.
+- Singe magot : basé sur le personnage « Barbarian » du même pack KayKit (CC0) — fourrure, visage,
+  oreilles et museau de macaque ajoutés.
 - Moteur 3D : Three.js (licence MIT).
