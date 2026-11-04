@@ -132,6 +132,12 @@ export async function loadHero(url) {
   attach(chest, bag, new THREE.Vector3(chestPos.x, chestPos.y + 0.02, bodyBox.max.z + 0.04), model);
   A.Idle.stop();
 
+  // os des bras et du buste, pour la bagarre avec le singe
+  const os = {};
+  for (const n of ['upperarml', 'upperarmr', 'lowerarml', 'lowerarmr', 'spine']) os[n] = model.getObjectByName(n);
+  const fezBase = { rz: fez.rotation.z, rx: fez.rotation.x, y: fez.position.y };
+  let lutte = 0;
+
   let current = null, mode = null, modeT = 0;
   function play(name, fade, once, timeScale) {
     const a = A[name];
@@ -162,13 +168,28 @@ export async function loadHero(url) {
       case 'slide': play('Sit_Floor_Pose', 0.08); break;
       case 'fly': play('Sit_Floor_Idle', 0.25); break;
       case 'fall': play('Death_A', 0.1, true, 1.3); break;
+      case 'struggle': play('Idle', 0.15, false, 2); break;
+      case 'sitdown': play('Sit_Floor_Idle', 0.3); break;
       default: play('Idle', 0.3);
     }
     mixer.update(dt);
+    // bagarre : les mains montent sur la tête pour retenir le tarbouche, le buste se tord
+    lutte += ((mode === 'struggle' ? 1 : 0) - lutte) * Math.min(1, dt * 10);
+    const t = info.t || 0;
+    if (lutte > 0.01 && os.upperarml) {
+      const w = lutte, a = Math.sin(t * 14) * 0.25, b = Math.sin(t * 14 + 1.3) * 0.3;
+      os.upperarml.rotation.y += (-2.1 + a) * w; os.lowerarml.rotation.y += (1.8 + b) * w;
+      os.upperarmr.rotation.y += (2.1 - a) * w;  os.lowerarmr.rotation.y += (-1.8 - b) * w;
+      if (os.spine) os.spine.rotation.y += Math.sin(t * 9) * 0.25 * w;
+    }
+    // le tarbouche est tiré dans tous les sens
+    fez.rotation.z = fezBase.rz + Math.sin(t * 16) * 0.35 * lutte;
+    fez.rotation.x = fezBase.rx + Math.sin(t * 11) * 0.25 * lutte;
+    fez.position.y = fezBase.y + Math.abs(Math.sin(t * 16)) * 0.08 * lutte;
     // le pompon du tarbouche se balance avec la course
-    const t = fez.userData.tassel;
-    t.rotation.x = 0.4 + Math.sin(info.phase * 0.5) * 0.3 + (info.vy > 0 ? -0.5 : 0);
-    t.rotation.z = Math.sin(info.phase * 0.7) * 0.2;
+    const pompon = fez.userData.tassel;
+    pompon.rotation.x = 0.4 + Math.sin(info.phase * 0.5) * 0.3 + (info.vy > 0 ? -0.5 : 0) + Math.sin(t * 20) * 0.6 * lutte;
+    pompon.rotation.z = Math.sin(info.phase * 0.7) * 0.2;
   }
 
   root.userData.rig = { fez };

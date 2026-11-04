@@ -24,6 +24,8 @@ const SPEED0 = 15, SPEED_MAX = 34;
 const DUREES = { aimant: 10, babouches: 10, tapis: 7, x2: 15 };
 const NOMS = { aimant: 'Aimant', babouches: 'Babouches', tapis: 'Tapis volant', x2: 'Score ×2' };
 const GOODS = ['epices', 'oranges', 'lanternes', 'tapis', 'babouches', 'poteries'];
+// Capture : bond du singe, bagarre sur le dos de Yassine, vol du tarbouche, puis écran de fin.
+const BOND = 0.5, VOL = 2.1, FIN = 3.2;
 
 // ---------------------------------------------------------------- moteur 3D
 const canvas = $('jeu');
@@ -154,6 +156,8 @@ loadHero('models/yassine.glb').then(h => {
   scene.add(runner);
 }).catch(e => console.warn('Modèle 3D indisponible, personnage de secours utilisé', e));
 const monkeyObj = M.buildMonkey();
+monkeyObj.scale.setScalar(0.75);
+const camDir = new THREE.Vector3();
 scene.add(monkeyObj);
 const carpet = M.buildFlyingCarpet();
 carpet.visible = false;
@@ -214,7 +218,7 @@ function resetWorld(withObstacles) {
   speed = withObstacles ? SPEED0 : 9; score = 0; coinsRun = 0; time = 0; shake = 0; dyingT = 0;
   for (const k in power) power[k] = 0;
   genZ = withObstacles ? 70 : Infinity; lastPowerZ = 0; decorZ = -BEHIND; palmZ = -BEHIND; flyCoinZ = 0;
-  Object.assign(monkey, { dist: 2.4, x: 0, y: 0, danger: 0, intro: 2.8, lastStep: 0 });
+  Object.assign(monkey, { dist: 2.4, x: 0, y: 0, danger: 0, intro: 2.8, lastStep: 0, wait: 0 });
   runner.userData.rig.fez.visible = true;
   monkeyObj.userData.rig.fez.visible = false;
   cam.x = 0; cam.y = CAM_H;
@@ -520,25 +524,28 @@ function update(dt) {
   }
 
   // singe
-  if (playing) {
+  if (playing && monkey.wait > 0) {
+    // au départ, le singe reste assis un instant pendant que Yassine s'élance, puis le poursuit
+    monkey.wait -= dt;
+    monkey.dist += sp * dt;
+  } else if (playing) {
     monkey.danger = Math.max(0, monkey.danger - dt);
     monkey.intro = Math.max(0, monkey.intro - dt);
     const target = monkey.danger > 0 || monkey.intro > 0 ? 2.1 : 13;
     monkey.dist += (target - monkey.dist) * Math.min(1, dt * (target < monkey.dist ? 4 : 0.5));
   } else if (state === 'menu') {
-    monkey.dist = -1.1;
+    monkey.dist = 1.6;   // assis derrière Yassine, il regarde par-dessus son épaule
   } else if (state === 'dying') {
-    monkey.dist = lerp(monkey.startDist, 0.3, clamp(dyingT / 0.55, 0, 1));
+    monkey.dist = lerp(monkey.startDist, 0.3, clamp(dyingT / BOND, 0, 1));
   }
-  const chaseOff = state === 'play' ? 0.75 * (p.lane === 2 ? -1 : 1) : 0;   // le singe court un peu décalé pour ne pas masquer le héros
-  monkey.x += ((state === 'menu' ? -1.0 : p.x + chaseOff) - monkey.x) * Math.min(1, dt * (state === 'play' ? 3 : 5));
+  if (!(monkey.wait > 0)) monkey.x += ((state === 'menu' ? p.x + 0.9 : p.x) - monkey.x) * Math.min(1, dt * (state === 'play' ? 3 : 5));
   monkey.phase += dt * (sp > 0 ? 6 + sp * 0.3 : 12);
   const mg = groundAt(monkey.x, p.z - monkey.dist, 99);
   if (state === 'dying') {
-    const k = clamp(dyingT / 0.55, 0, 1);
-    monkey.y = k < 1 ? lerp(mg, p.y + 0.3, k) + Math.sin(k * Math.PI) * 1.4 : p.y + 0.3;
+    const k = clamp(dyingT / BOND, 0, 1);
+    monkey.y = lerp(mg, p.y + 0.95, k) + Math.sin(k * Math.PI) * 1.2;
   } else monkey.y += (mg - monkey.y) * Math.min(1, dt * 10);
-  if (state === 'dying' && dyingT > 1.6) gameOver();
+  if (state === 'dying' && dyingT > FIN) gameOver();
 
   // poussière sous les pas
   if (sp > 0 && p.onGround && p.slide <= 0) {
@@ -664,7 +671,7 @@ function syncScene(dt) {
   const air = !flying && !p.onGround && p.y - p.ground > 0.2;
   let mode = 'run';
   if (state === 'menu') mode = 'idle';
-  else if (state === 'dying' || state === 'over') mode = 'fall';
+  else if (state === 'dying' || state === 'over') mode = dyingT < BOND ? 'hit' : dyingT < VOL ? 'struggle' : 'sitdown';
   else if (flying) mode = 'fly';
   else if (p.slide > 0) mode = 'slide';
   else if (air) mode = 'jump';
@@ -675,11 +682,16 @@ function syncScene(dt) {
   const animated = !!runner.userData.update;
   runner.rotation.x = mode === 'fall' && !animated ? 0.25 : 0;
   runner.visible = !(p.ghost > 0 && p.ghost < 1e8 && Math.floor(time * 12) % 2 === 0);
-  if (animated) runner.userData.update(mode, dt, { speed: state === 'play' ? speed : 15, vy: p.vy, phase: p.phase });
-  else M.animateRunner(runner, mode === 'hit' ? 'run' : mode, p.phase, dt, { vy: p.vy, time });
+  if (animated) runner.userData.update(mode, dt, { speed: state === 'play' ? speed : 15, vy: p.vy, phase: p.phase, t: time });
+  else M.animateRunner(runner, mode === 'hit' ? 'run' : mode === 'struggle' || mode === 'sitdown' ? 'fall' : mode, p.phase, dt, { vy: p.vy, time });
   // figures pendant le saut
   const pv = runner.userData.pivot;
   runner.rotation.y = Math.PI * (1 - smooth(0.1, 0.55, camIntro));   // de face au menu, demi-tour au départ
+  if (state === 'dying' || state === 'over') {
+    // il se débat (torsions à gauche et à droite), puis se retourne vers le singe qui lui a volé son tarbouche
+    const lutte = smooth(BOND - 0.1, BOND + 0.2, dyingT) * (1 - smooth(VOL - 0.2, VOL, dyingT));
+    runner.rotation.y = Math.sin(dyingT * 9) * 0.5 * lutte + Math.PI * 0.85 * smooth(VOL, VOL + 0.7, dyingT);
+  }
   const prog = mode === 'jump' && p.trick ? clamp(p.airT / (p.trick === 'salto' ? 0.85 : 0.6), 0, 1) : 0;
   const eased = prog * prog * (3 - 2 * prog);
   pv.rotation.y = p.trick === 'vrille' ? eased * Math.PI * 2 : 0;
@@ -689,20 +701,40 @@ function syncScene(dt) {
 
   // singe
   const mz = p.z - monkey.dist;
-  monkeyObj.visible = lerp(3.9, CAM_BACK, smooth(0, 1, camIntro)) - monkey.dist > 2.0;
-  const grab = state === 'dying' && dyingT > 0.55 || state === 'over';
-  if (grab) {
-    // avec le personnage animé, Yassine tombe en arrière : le singe s'assoit sur lui, le tarbouche sur la tête
-    if (runner.userData.update) monkeyObj.position.set(p.x, p.y + 0.3, -p.z + 1.0);
-    else monkeyObj.position.set(p.x, p.y + 0.55, -p.z + 0.32);
-    runner.userData.rig.fez.visible = false;
-    monkeyObj.userData.rig.fez.visible = true;
+  const capture = state === 'dying' || state === 'over';
+  const assis = state === 'menu' || monkey.wait > 0;
+  let mmode = assis ? 'sit' : (monkey.danger > 0 || monkey.intro > 0) ? 'chase' : 'gallop';
+  monkeyObj.rotation.y = assis ? Math.PI * 0.85 : 0;
+  if (capture && dyingT >= BOND) {
+    const yaw = runner.rotation.y;
+    const dos = new THREE.Vector3(p.x + Math.sin(yaw) * 0.32, p.y + 0.95, -p.z + Math.cos(yaw) * 0.32);
+    if (dyingT < VOL) {
+      // agrippé au dos de Yassine, il tire sur le tarbouche
+      monkeyObj.position.copy(dos);
+      monkeyObj.position.y += Math.abs(Math.sin(dyingT * 14)) * 0.06;
+      monkeyObj.rotation.y = yaw;
+      mmode = 'grab';
+    } else {
+      // il a volé le tarbouche : il saute à terre et le brandit pour narguer Yassine
+      runner.userData.rig.fez.visible = false;
+      monkeyObj.userData.rig.fez.visible = true;
+      const k = smooth(VOL, VOL + 0.45, dyingT);
+      const sol = new THREE.Vector3(p.x + 1.3, p.ground, -p.z - 0.5);
+      monkeyObj.position.lerpVectors(dos, sol, k);
+      monkeyObj.position.y += Math.sin(k * Math.PI) * 0.9;
+      monkeyObj.rotation.y = lerp(yaw, Math.PI * 0.8, k);
+      mmode = k < 1 ? 'chase' : 'grab';
+    }
+  } else if (capture) {
+    monkeyObj.position.set(monkey.x, monkey.y, -mz);
+    mmode = 'chase';
   } else {
     monkeyObj.position.set(monkey.x, monkey.y, -mz);
   }
-  const mmode = grab ? 'grab' : state === 'menu' ? 'sit' : (monkey.danger > 0 || monkey.intro > 0 || state === 'dying') ? 'chase' : 'gallop';
   M.animateMonkey(monkeyObj, mmode, monkey.phase, dt);
-  monkeyObj.rotation.y = state === 'menu' ? Math.PI * 0.85 : 0;
+  // visible seulement s'il est bien devant la caméra (jamais collé à l'objectif)
+  camera.getWorldDirection(camDir);
+  monkeyObj.visible = tmpV.copy(monkeyObj.position).sub(camera.position).dot(camDir) > (camIntro < 1 ? 2.6 : 1.6);
 
   // particules
   const sp = state === 'play' || state === 'menu' ? speed : 0;
@@ -721,7 +753,7 @@ function syncScene(dt) {
 
   // caméra
   const sx = shake > 0 ? rand(-1, 1) * shake * 0.35 : 0, sy = shake > 0 ? rand(-1, 1) * shake * 0.35 : 0;
-  const pull = state === 'dying' || state === 'over' ? smooth(0, 0.8, dyingT) * 2.2 : 0;   // recul pour voir la capture
+  const vue = state === 'dying' || state === 'over' ? smooth(0, 0.8, dyingT) : 0;   // caméra de 3/4 pour voir la bagarre
   camIntro = state === 'menu' ? 0 : Math.min(1, camIntro + dt / 1.0);
   const e = smooth(0, 1, camIntro);
   if (e < 1) {
@@ -730,8 +762,8 @@ function syncScene(dt) {
     camera.position.set(lerp(mx, cam.x, e), lerp(1.25, cam.y, e), -(pz - lerp(3.9, CAM_BACK, e)));
     camera.lookAt(lerp(mx, cam.x * 0.85, e), lerp(0.3, cam.y - 2.2, e), -(pz + lerp(0, 10, e)));
   } else {
-    camera.position.set(cam.x + sx, cam.y + sy + pull * 0.4, -(pz - CAM_BACK - pull));
-    camera.lookAt(cam.x * 0.85, cam.y - 2.2, -(pz + 10));
+    camera.position.set(lerp(cam.x, p.x + 2.3, vue) + sx, lerp(cam.y, p.y + 1.9, vue) + sy, -(pz - lerp(CAM_BACK, 3.3, vue)));
+    camera.lookAt(lerp(cam.x * 0.85, p.x + 0.35, vue), lerp(cam.y - 2.2, p.y + 1.0, vue), -(pz + lerp(10, 0, vue)));
   }
   backdrop.position.set(camera.position.x, camera.position.y, camera.position.z - 420);
   for (const cl of clouds) {
@@ -783,7 +815,7 @@ function startGame() {
   Sound.init();
   const fromMenu = state === 'menu';
   resetWorld(true);
-  if (fromMenu) { monkey.dist = -1.1; monkey.x = -1.0; }   // le singe démarre à côté du héros
+  if (fromMenu) { monkey.dist = 1.6; monkey.x = p.x + 0.9; monkey.wait = 0.7; }   // le singe part de derrière Yassine
   state = 'play';
   show(null);
   ui.hud.hidden = false;
@@ -911,5 +943,6 @@ window.BEHJA = {
   get player() { return p; }, get obstacles() { return obstacles; }, act, startGame, power,
   step(dt) { update(dt); }, setInvincible(v) { p.ghost = v ? 1e9 : 0; }, setTime(t) { time = t; },
   get quality() { return quality; }, setQuality(q) { quality = q; applyQuality(); },
+  get dyingT() { return dyingT; }, crash() { crash(); },
   renderer
 };
