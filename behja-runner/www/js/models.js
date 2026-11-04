@@ -882,3 +882,109 @@ export function buildDirham() {
   c.userData.coin = c.children[0];
   return c;
 }
+
+// La « 103 » : mobylette de quartier, cadre bleu et garde-boue blancs (sans marque ni logo).
+// Origine au sol sous la selle, l'avant vers -z.
+function tube(a, b, r, mat) {
+  const va = new THREE.Vector3(...a), vb = new THREE.Vector3(...b);
+  const len = va.distanceTo(vb);
+  const m = new THREE.Mesh(G.cyl, mat);
+  m.scale.set(r, len, r);
+  m.position.copy(va).add(vb).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vb.clone().sub(va).normalize());
+  m.castShadow = true;
+  return m;
+}
+function roue(mat, chrome) {
+  const w = new THREE.Group();
+  w.userData.keep = true;
+  const pneu = new THREE.Mesh(cached('pneu', () => new THREE.TorusGeometry(0.28, 0.055, 10, 28)), lam('#1b1b1b'));
+  pneu.rotation.y = Math.PI / 2;
+  pneu.castShadow = true;
+  w.add(pneu);
+  const jante = new THREE.Mesh(cached('jante', () => new THREE.TorusGeometry(0.23, 0.018, 6, 28)), chrome);
+  jante.rotation.y = Math.PI / 2;
+  w.add(jante);
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    w.add(tube([0, 0, 0], [0, Math.cos(a) * 0.23, Math.sin(a) * 0.23], 0.006, chrome));
+  }
+  const moyeu = new THREE.Mesh(G.cyl, mat);
+  moyeu.scale.set(0.05, 0.12, 0.05);
+  moyeu.rotation.z = Math.PI / 2;
+  w.add(moyeu);
+  return w;
+}
+export function buildMoto() {
+  const g = new THREE.Group();
+  const bleu = new THREE.MeshStandardMaterial({ color: '#1f5fae', roughness: 0.35, metalness: 0.2 });
+  const bleuClair = new THREE.MeshStandardMaterial({ color: '#2f7fd6', roughness: 0.35, metalness: 0.2 });
+  const blanc = new THREE.MeshStandardMaterial({ color: '#f2f2ee', roughness: 0.4 });
+  const noir = new THREE.MeshStandardMaterial({ color: '#1e1e1e', roughness: 0.7 });
+  const chrome = new THREE.MeshStandardMaterial({ color: '#d9dfe3', roughness: 0.2, metalness: 0.9 });
+  const gris = new THREE.MeshStandardMaterial({ color: '#7d8489', roughness: 0.5, metalness: 0.5 });
+  const AV = -0.62, AR = 0.56, R = 0.32;
+  // roues
+  const rAv = roue(gris, chrome); rAv.position.set(0, R, AV); g.add(rAv);
+  const rAr = roue(gris, chrome); rAr.position.set(0, R, AR); g.add(rAr);
+  // cadre
+  g.add(tube([0, 0.98, -0.5], [0, 0.36, -0.06], 0.045, bleu));
+  g.add(tube([0, 0.36, -0.06], [0, 0.62, 0.42], 0.04, bleu));
+  g.add(tube([0, 0.62, 0.42], [0, R, AR], 0.03, bleu));
+  for (const sx of [-0.07, 0.07]) {
+    g.add(tube([sx, 0.98, -0.5], [sx, R, AV], 0.022, chrome));          // fourche
+    g.add(tube([sx, 0.62, 0.3], [sx, R, AR], 0.018, bleu));            // bras arrière
+  }
+  // carénage sous la selle (réservoir)
+  const carter = prim(G.box, bleuClair, 0.24, 0.3, 0.5, 0, 0.56, 0.12);
+  g.add(carter);
+  g.add(prim(G.box, blanc, 0.245, 0.04, 0.5, 0, 0.5, 0.12));          // filet blanc
+  // selle
+  const selle = prim(G.box, noir, 0.27, 0.09, 0.52, 0, 0.75, 0.16);
+  g.add(selle);
+  // moteur, pot d'échappement, pédales
+  g.add(prim(G.box, gris, 0.2, 0.2, 0.26, 0, 0.3, 0.02));
+  g.add(prim(G.cyl, gris, 0.08, 0.16, 0.08, 0, 0.42, 0.02));
+  const pot = tube([0.12, 0.25, 0.05], [0.14, 0.32, 0.62], 0.04, chrome);
+  g.add(pot);
+  for (const sx of [-1, 1]) {
+    g.add(tube([0, 0.3, 0.02], [sx * 0.2, 0.22, 0.02], 0.015, noir));
+    g.add(prim(G.box, noir, 0.1, 0.02, 0.06, sx * 0.24, 0.22, 0.02));
+  }
+  // garde-boue blancs
+  for (const [z, a0] of [[AV, -0.2], [AR, -0.4]]) {
+    const gb = new THREE.Mesh(cached('gardeBoue', () => new THREE.TorusGeometry(0.36, 0.05, 6, 20, Math.PI * 0.75)), blanc);
+    gb.rotation.y = Math.PI / 2;
+    gb.rotation.x = a0;
+    gb.position.set(0, R, z);
+    gb.castShadow = true;
+    g.add(gb);
+  }
+  // guidon, poignées, rétroviseurs
+  g.add(tube([0, 0.98, -0.5], [0, 1.12, -0.46], 0.025, chrome));
+  g.add(tube([-0.36, 1.12, -0.42], [0.36, 1.12, -0.42], 0.018, chrome));
+  for (const sx of [-1, 1]) {
+    g.add(prim(G.cyl, noir, 0.03, 0.12, 0.03, sx * 0.38, 1.12, -0.42).rotateZ(Math.PI / 2));
+    g.add(tube([sx * 0.25, 1.12, -0.42], [sx * 0.3, 1.32, -0.45], 0.01, chrome));
+    const retro = prim(G.cyl, chrome, 0.06, 0.015, 0.06, sx * 0.31, 1.35, -0.45);
+    retro.rotation.x = Math.PI / 2;
+    g.add(retro);
+  }
+  // phare avant
+  const phare = prim(G.cyl, chrome, 0.09, 0.08, 0.09, 0, 1.0, -0.6);
+  phare.rotation.x = Math.PI / 2;
+  g.add(phare);
+  const verre = prim(G.cyl, new THREE.MeshBasicMaterial({ color: '#fff4c2' }), 0.075, 0.01, 0.075, 0, 1.0, -0.645, false);
+  verre.rotation.x = Math.PI / 2;
+  g.add(verre);
+  const halo = glowSprite(1.2);
+  halo.position.set(0, 1.0, -0.7);
+  g.add(halo);
+  // porte-bagage avec une caisse de menthe fraîche
+  g.add(prim(G.box, chrome, 0.26, 0.02, 0.36, 0, 0.8, 0.58));
+  g.add(prim(G.box, texMat('crate', T.crateTexture()), 0.34, 0.2, 0.3, 0, 0.92, 0.6));
+  for (let k = 0; k < 6; k++) g.add(prim(G.sphereLow, toon(k % 2 ? '#2f9e44' : '#40c057'), 0.09, 0.07, 0.09, -0.1 + (k % 3) * 0.1, 1.05, 0.52 + Math.floor(k / 3) * 0.14));
+  bake(g);
+  g.userData.roues = [rAv, rAr];
+  return g;
+}

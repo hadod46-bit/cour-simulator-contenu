@@ -190,7 +190,7 @@ export async function loadHero(def) {
   const os = {};
   for (const n of ['upperarml', 'upperarmr', 'lowerarml', 'lowerarmr', 'spine']) os[n] = model.getObjectByName(n);
   const fezBase = { rz: fez.rotation.z, rx: fez.rotation.x, y: fez.position.y };
-  let lutte = 0;
+  let lutte = 0, guidon = 0;
 
   let current = null, mode = null, modeT = 0;
   function play(name, fade, once, timeScale) {
@@ -224,6 +224,7 @@ export async function loadHero(def) {
       case 'fall': play('Death_A', 0.1, true, 1.3); break;
       case 'struggle': play('Idle', 0.15, false, 2); break;
       case 'sitdown': play('Sit_Floor_Idle', 0.3); break;
+      case 'ride': play('Sit_Chair_Idle', 0.15); break;     // sur la 103
       default: play('Idle', 0.3);
     }
     mixer.update(dt);
@@ -235,6 +236,13 @@ export async function loadHero(def) {
       os.upperarml.rotation.y += (-2.1 + a) * w; os.lowerarml.rotation.y += (1.8 + b) * w;
       os.upperarmr.rotation.y += (2.1 - a) * w;  os.lowerarmr.rotation.y += (-1.8 - b) * w;
       if (os.spine) os.spine.rotation.y += Math.sin(t * 9) * 0.25 * w;
+    }
+    // sur la 103 : les bras vont chercher le guidon
+    guidon += ((mode === 'ride' ? 1 : 0) - guidon) * Math.min(1, dt * 10);
+    if (guidon > 0.01 && os.upperarml) {
+      const w = guidon * (info.bras ?? 1);
+      os.upperarml.rotation.x += -1.2 * w; os.upperarmr.rotation.x += -1.2 * w;
+      os.lowerarml.rotation.x += -0.3 * w; os.lowerarmr.rotation.x += -0.3 * w;
     }
     // le tarbouche est tiré dans tous les sens
     fez.rotation.z = fezBase.rz + Math.sin(t * 16) * 0.35 * lutte;

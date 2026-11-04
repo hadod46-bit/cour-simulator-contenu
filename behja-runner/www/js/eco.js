@@ -24,6 +24,7 @@ export const PACKS = [
   { id: 'coffre', nom: 'Coffre du souk', dirhams: 150, prix: '9,99 €', bonus: '+50 %' }
 ];
 export const ECHANGE = { rials: 1500, dirhams: 1 };
+export const MOTO = { prix: 250, duree: 30, offertes: 3 };   // la 103 : tape 2 fois pendant la course
 export const CHANCE_DIRHAM = 0.008;   // probabilité qu'une pièce de la piste soit un dirham (rare)
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -38,9 +39,10 @@ export const eco = {
   boosts: Object.assign({ trombe: 0, aimantDepart: 0 }, store.get('boosts', {})),
   armes: Object.assign({ trombe: false, aimantDepart: false }, store.get('armes', {})),
   cadeau: store.get('cadeau', ''),
+  motos: store.get('motos', MOTO.offertes),
 
   save() {
-    for (const k of ['rials', 'dirhams', 'persos', 'perso', 'niveaux', 'boosts', 'armes', 'cadeau']) store.set(k, this[k]);
+    for (const k of ['rials', 'dirhams', 'persos', 'perso', 'niveaux', 'boosts', 'armes', 'cadeau', 'motos']) store.set(k, this[k]);
   },
   possede(id) { return this.persos.includes(id); },
   acheterPerso(id) {
@@ -81,6 +83,19 @@ export const eco = {
     }
     this.save();
     return utilises;
+  },
+  acheterMoto() {
+    if (this.rials < MOTO.prix) return false;
+    this.rials -= MOTO.prix;
+    this.motos++;
+    this.save();
+    return true;
+  },
+  utiliserMoto() {
+    if (this.motos <= 0) return false;
+    this.motos--;
+    this.save();
+    return true;
   },
   echanger() {
     if (this.rials < ECHANGE.rials) return false;

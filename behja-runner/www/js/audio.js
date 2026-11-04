@@ -55,6 +55,31 @@ export const Sound = {
     for (let i = 0; i < 3; i++) this.tone(900 + i * 120, 0.12, 'sawtooth', 0.08, 1500 + i * 100, i * 0.11);
   },
   power() { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.16, 'triangle', 0.12, null, i * 0.06)); },
+  // moteur de mobylette : dent de scie grave, vibrato rapide, filtre passe-bas
+  moteur(on, regime) {
+    if (!this.ac) return;
+    const t = this.ac.currentTime;
+    if (on && !this.moto) {
+      const o = this.ac.createOscillator(), lfo = this.ac.createOscillator(), lg = this.ac.createGain();
+      const f = this.ac.createBiquadFilter(), g = this.ac.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 60;
+      lfo.frequency.value = 28; lg.gain.value = 9;
+      lfo.connect(lg); lg.connect(o.frequency);
+      f.type = 'lowpass'; f.frequency.value = 900;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07, t + 0.15);
+      o.connect(f); f.connect(g); g.connect(this.sfx);
+      o.start(); lfo.start();
+      this.moto = { o, lfo, g };
+      // pétarade au démarrage
+      for (let i = 0; i < 4; i++) this.noise(0.05, 0.25, 500, 'lowpass', i * 0.07);
+    } else if (!on && this.moto) {
+      const m = this.moto;
+      m.g.gain.setTargetAtTime(0.0001, t, 0.08);
+      m.o.stop(t + 0.4); m.lfo.stop(t + 0.4);
+      this.moto = null;
+    }
+    if (this.moto && regime) this.moto.o.frequency.setTargetAtTime(55 + regime * 1.6, t, 0.2);
+  },
   bell() { this.tone(1760, 0.5, 'sine', 0.06); this.tone(2637, 0.4, 'sine', 0.03, null, 0.02); },
 
   // Musique : darbouka (rythme maqsoum), qraqeb gnaoua, basse de guembri et mélodie en mode hijaz.
