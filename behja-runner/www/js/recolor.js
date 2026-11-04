@@ -2,7 +2,7 @@
 export function recolor(img, map) {
   const c = document.createElement('canvas');
   c.width = img.width; c.height = img.height;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(img, 0, 0);
   const SW = img.width / 8, SH = img.height / 4;   // cellules de 128 x 256 px
   const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));

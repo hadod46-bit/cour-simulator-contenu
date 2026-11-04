@@ -119,8 +119,9 @@
       document.getElementById('css').href = 'style.css' + q;
     }
     import('./js/main.js').catch(function (e) {
-      // si la version en ligne ne se charge pas, on revient à la version embarquée
-      if (!embarque) console.error(e);
+      console.error('Chargement du jeu impossible', e);
+      // la version en ligne ne se charge pas : on revient à la version incluse dans l'application
+      if (v && /localhost/.test(document.referrer + location.href) === false && window.Capacitor) location.replace('https://localhost/index.html?local');
     });
   }
 
