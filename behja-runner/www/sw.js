@@ -1,7 +1,7 @@
 // Cache hors ligne pour la version web (PWA) de Behja Runner.
-const CACHE = 'behja-runner-v4';
+const CACHE = 'behja-runner-v5';
 const FICHIERS = ['./', './index.html', './style.css', './manifest.webmanifest',
-  './js/main.js', './js/models.js', './js/textures.js', './js/audio.js', './js/util.js', './js/hero.js', './js/recolor.js',
+  './js/main.js', './js/models.js', './js/textures.js', './js/audio.js', './js/util.js', './js/hero.js', './js/recolor.js', './js/monkey3d.js', './models/singe.glb',
   './lib/GLTFLoader.js', './lib/BufferGeometryUtils.js', './models/yassine.glb',
   './lib/three.module.min.js', './lib/three.core.min.js',
   './icons/icon-192.png', './icons/icon-512.png'];

@@ -12,7 +12,7 @@ const COULEURS_JAMBES = { 1: ['#3a2618', '#140b06'], 0: ['#c98a5c', '#a06438'], 
 
 function std(color, roughness) { return new THREE.MeshStandardMaterial({ color, roughness: roughness || 0.6, metalness: 0 }); }
 
-function buildFez() {
+export function buildFez() {
   const g = new THREE.Group();
   const red = std('#c1272d', 0.5);
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.37, 0.5, 32), red);
@@ -56,7 +56,7 @@ function buildBackpack() {
 }
 
 // Place un accessoire sur un os, orienté selon la verticale du personnage au repos.
-function attach(bone, obj, worldPoint, model) {
+export function attach(bone, obj, worldPoint, model) {
   model.updateMatrixWorld(true);
   const inv = new THREE.Matrix4().copy(bone.matrixWorld).invert();
   obj.position.copy(worldPoint.clone().applyMatrix4(inv));
