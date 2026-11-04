@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 // ---------------------------------------------------------------- constantes de jeu
 const LANE = 2.6, LANES = [-LANE, 0, LANE];
 const ROAD = 4.4, WALL_X = 6.6;
-const CAM_BACK = 5.9, CAM_H = 3.9, FAR = 200, BEHIND = 14;
+const CAM_BACK = 5.0, CAM_H = 3.5, FAR = 200, BEHIND = 14;
 const STALL_H = 2.8, RAMP_LEN = 8;
 const GRAV = 42, JUMP_V = 13.5, SUPER_JUMP_V = 19.5;
 const PH = 1.75, PH_SLIDE = 0.75;
@@ -194,6 +194,7 @@ const power = { aimant: 0, babouches: 0, tapis: 0, x2: 0 };
 let obstacles = [], coins = [], powerups = [], decor = [], palms = [];
 let genZ = 0, lastPowerZ = 0, decorZ = 0, palmZ = 0, flyCoinZ = 0;
 const cam = { x: 0, y: CAM_H };
+let camIntro = 0;
 
 function resetWorld(withObstacles) {
   for (const arr of [obstacles, powerups, decor, palms]) for (const e of arr) if (e.obj) removeObj(e.obj);
@@ -373,6 +374,8 @@ function act(d) {
 }
 function doJump() {
   p.vy = power.babouches > 0 ? SUPER_JUMP_V : JUMP_V;
+  p.airT = 0;
+  p.trick = power.babouches > 0 ? 'salto' : Math.random() < 0.3 ? 'vrille' : null;
   p.onGround = false; p.slide = 0; p.coyote = 0; p.jumpBuf = 0;
   Sound.jump();
 }
@@ -431,7 +434,7 @@ function update(dt) {
   if (state === 'pause') return;
   const playing = state === 'play';
   if (playing) speed = Math.min(SPEED_MAX, SPEED0 + time * 0.11);
-  const sp = state === 'dying' || state === 'over' ? 0 : speed;
+  const sp = state === 'dying' || state === 'over' || state === 'menu' ? 0 : speed;
 
   p.z += sp * dt;
   p.phase += dt * (sp > 0 ? 5 + sp * 0.33 : 0);
@@ -462,6 +465,9 @@ function update(dt) {
       p.onGround = false;
     }
   }
+  p.airT = (p.airT || 0) + dt;
+  // poussière pendant la glissade
+  if (p.slide > 0 && p.onGround && sp > 0 && Math.random() < 0.6) puff(p.x + rand(-0.3, 0.3), p.ground + 0.1, p.z + 0.4, '#ead2a8', 0.5, 0.5, rand(-1, 1), rand(0.4, 1.2), 0, false);
   if (playing) checkCollisions();
   if (p.ghost > 0 && p.ghost < 0.15 && insideStand()) p.ghost = 0.15;
 
@@ -509,14 +515,15 @@ function update(dt) {
   if (playing) {
     monkey.danger = Math.max(0, monkey.danger - dt);
     monkey.intro = Math.max(0, monkey.intro - dt);
-    const target = monkey.danger > 0 || monkey.intro > 0 ? 2.3 : 13;
+    const target = monkey.danger > 0 || monkey.intro > 0 ? 2.1 : 13;
     monkey.dist += (target - monkey.dist) * Math.min(1, dt * (target < monkey.dist ? 4 : 0.5));
   } else if (state === 'menu') {
-    monkey.dist = 2.8 + Math.sin(time * 0.8) * 0.4;
+    monkey.dist = -1.1;
   } else if (state === 'dying') {
     monkey.dist = lerp(monkey.startDist, 0.3, clamp(dyingT / 0.55, 0, 1));
   }
-  monkey.x += (p.x - monkey.x) * Math.min(1, dt * 5);
+  const chaseOff = state === 'play' ? 0.75 * (p.lane === 2 ? -1 : 1) : 0;   // le singe court un peu décalé pour ne pas masquer le héros
+  monkey.x += ((state === 'menu' ? -1.0 : p.x + chaseOff) - monkey.x) * Math.min(1, dt * (state === 'play' ? 3 : 5));
   monkey.phase += dt * (sp > 0 ? 6 + sp * 0.3 : 12);
   const mg = groundAt(monkey.x, p.z - monkey.dist, 99);
   if (state === 'dying') {
@@ -648,7 +655,8 @@ function syncScene(dt) {
   const flying = power.tapis > 0;
   const air = !flying && !p.onGround && p.y - p.ground > 0.2;
   let mode = 'run';
-  if (state === 'dying' || state === 'over') mode = 'fall';
+  if (state === 'menu') mode = 'idle';
+  else if (state === 'dying' || state === 'over') mode = 'fall';
   else if (flying) mode = 'fly';
   else if (p.slide > 0) mode = 'slide';
   else if (air) mode = 'jump';
@@ -656,13 +664,20 @@ function syncScene(dt) {
   runner.rotation.z = state === 'dying' ? 0 : -clamp((LANES[p.lane] - p.x) * 0.12, -0.25, 0.25);
   runner.rotation.x = mode === 'fall' ? 0.25 : 0;
   runner.visible = !(p.ghost > 0 && p.ghost < 1e8 && Math.floor(time * 12) % 2 === 0);
-  M.animateRunner(runner, mode, p.phase, dt, p);
+  M.animateRunner(runner, mode, p.phase, dt, { vy: p.vy, time });
+  // figures pendant le saut
+  const pv = runner.userData.pivot;
+  runner.rotation.y = Math.PI * (1 - smooth(0.1, 0.55, camIntro));   // de face au menu, demi-tour au départ
+  const prog = mode === 'jump' && p.trick ? clamp(p.airT / (p.trick === 'salto' ? 0.85 : 0.6), 0, 1) : 0;
+  const eased = prog * prog * (3 - 2 * prog);
+  pv.rotation.y = p.trick === 'vrille' ? eased * Math.PI * 2 : 0;
+  pv.rotation.x = p.trick === 'salto' ? -eased * Math.PI * 2 : 0;
   carpet.visible = flying;
   if (flying) { carpet.position.set(p.x, p.y + 0.08, -p.z); M.waveCarpet(carpet, time); }
 
   // singe
   const mz = p.z - monkey.dist;
-  monkeyObj.visible = monkey.dist < CAM_BACK + 0.5;
+  monkeyObj.visible = lerp(3.9, CAM_BACK, smooth(0, 1, camIntro)) - monkey.dist > 2.0;
   const grab = state === 'dying' && dyingT > 0.55 || state === 'over';
   if (grab) {
     monkeyObj.position.set(p.x, p.y + 0.55, -p.z + 0.32);
@@ -671,8 +686,9 @@ function syncScene(dt) {
   } else {
     monkeyObj.position.set(monkey.x, monkey.y, -mz);
   }
-  const mmode = grab ? 'grab' : (monkey.danger > 0 || monkey.intro > 0 || state === 'menu' || state === 'dying') ? 'chase' : 'gallop';
+  const mmode = grab ? 'grab' : state === 'menu' ? 'sit' : (monkey.danger > 0 || monkey.intro > 0 || state === 'dying') ? 'chase' : 'gallop';
   M.animateMonkey(monkeyObj, mmode, monkey.phase, dt);
+  monkeyObj.rotation.y = state === 'menu' ? Math.PI * 0.85 : 0;
 
   // particules
   const sp = state === 'play' || state === 'menu' ? speed : 0;
@@ -692,8 +708,17 @@ function syncScene(dt) {
   // caméra
   const sx = shake > 0 ? rand(-1, 1) * shake * 0.35 : 0, sy = shake > 0 ? rand(-1, 1) * shake * 0.35 : 0;
   const pull = state === 'dying' || state === 'over' ? smooth(0, 0.8, dyingT) * 2.2 : 0;   // recul pour voir la capture
-  camera.position.set(cam.x + sx, cam.y + sy + pull * 0.4, -(pz - CAM_BACK - pull));
-  camera.lookAt(cam.x * 0.85, cam.y - 2.5, -(pz + 10));
+  camIntro = state === 'menu' ? 0 : Math.min(1, camIntro + dt / 1.0);
+  const e = smooth(0, 1, camIntro);
+  if (e < 1) {
+    // menu : caméra face au héros (qui nous regarde), puis recul jusqu'à la vue de course
+    const mx = p.x - 0.25;
+    camera.position.set(lerp(mx, cam.x, e), lerp(1.25, cam.y, e), -(pz - lerp(3.9, CAM_BACK, e)));
+    camera.lookAt(lerp(mx, cam.x * 0.85, e), lerp(0.3, cam.y - 2.2, e), -(pz + lerp(0, 10, e)));
+  } else {
+    camera.position.set(cam.x + sx, cam.y + sy + pull * 0.4, -(pz - CAM_BACK - pull));
+    camera.lookAt(cam.x * 0.85, cam.y - 2.2, -(pz + 10));
+  }
   backdrop.position.set(camera.position.x, camera.position.y, camera.position.z - 420);
   for (const cl of clouds) {
     const u = cl.userData;
@@ -742,7 +767,9 @@ function show(el) { for (const e of [ui.menu, ui.pause, ui.fin]) e.hidden = e !=
 
 function startGame() {
   Sound.init();
+  const fromMenu = state === 'menu';
   resetWorld(true);
+  if (fromMenu) { monkey.dist = -1.1; monkey.x = -1.0; }   // le singe démarre à côté du héros
   state = 'play';
   show(null);
   ui.hud.hidden = false;

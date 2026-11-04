@@ -566,104 +566,211 @@ export function setWallLook(seg, variant, colorIdx) {
 }
 
 // ------------------------------------------------------------------ personnages
-function capsule(r, len, mat, outline) {
-  const geo = cached(`caps${r}_${len}`, () => new THREE.CapsuleGeometry(r, len, 6, 12));
-  return outline ? outlined(geo, mat, r) : mesh(geo, mat);
+// ------------------------------------------------------------------ personnages (style dessin animé lisse)
+const std = (color, rough) => cached('std' + color + (rough || ''), () => new THREE.MeshStandardMaterial({ color, roughness: rough || 0.7, metalness: 0 }));
+function capsule(r, len, mat) {
+  return mesh(cached(`caps${r}_${len}`, () => new THREE.CapsuleGeometry(r, len, 8, 16)), mat);
 }
-function ball(r, mat, outline) {
-  const geo = cached('ball' + r, () => new THREE.SphereGeometry(r, 18, 14));
-  return outline ? outlined(geo, mat, r) : mesh(geo, mat);
+function ball(r, mat) {
+  return mesh(cached('ball' + r, () => new THREE.SphereGeometry(r, 24, 18)), mat);
+}
+function lathe(points, mat, segs) {
+  const key = 'lathe' + points.join('|');
+  return mesh(cached(key, () => new THREE.LatheGeometry(points.map(([r, y]) => new THREE.Vector2(r, y)), segs || 28)), mat);
 }
 function joint(parent, x, y, z) { const j = new THREE.Group(); j.position.set(x, y, z); parent.add(j); return j; }
+function roundedBox(w, h, d, r) {
+  return cached(`rbox${w}_${h}_${d}_${r}`, () => {
+    const s = new THREE.Shape();
+    const x = -w / 2 + r, y = -h / 2 + r, W = w - 2 * r, H = h - 2 * r;
+    s.moveTo(x, y - r); s.lineTo(x + W, y - r); s.quadraticCurveTo(x + W + r, y - r, x + W + r, y);
+    s.lineTo(x + W + r, y + H); s.quadraticCurveTo(x + W + r, y + H + r, x + W, y + H + r);
+    s.lineTo(x, y + H + r); s.quadraticCurveTo(x - r, y + H + r, x - r, y + H);
+    s.lineTo(x - r, y); s.quadraticCurveTo(x - r, y - r, x, y - r);
+    const g = new THREE.ExtrudeGeometry(s, { depth: d - 2 * r, bevelEnabled: true, bevelThickness: r, bevelSize: r * 0.9, bevelSegments: 4, curveSegments: 8 });
+    g.translate(0, 0, -(d - 2 * r) / 2);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Basket épaisse : profil latéral extrudé avec arrondis (pointe vers -z = vers l'avant).
+function sneakerGeos() {
+  return cached('sneakerGeos', () => {
+    const up = new THREE.Shape();
+    up.moveTo(-0.09, 0.03); up.lineTo(0.15, 0.03); up.quadraticCurveTo(0.23, 0.03, 0.21, 0.08);
+    up.quadraticCurveTo(0.17, 0.12, 0.08, 0.12); up.lineTo(0.0, 0.17); up.lineTo(-0.08, 0.18);
+    up.quadraticCurveTo(-0.12, 0.13, -0.11, 0.07); up.quadraticCurveTo(-0.11, 0.03, -0.09, 0.03);
+    const upper = new THREE.ExtrudeGeometry(up, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.025, bevelSegments: 4, curveSegments: 10 });
+    const so = new THREE.Shape();
+    so.moveTo(-0.11, 0); so.lineTo(0.2, 0); so.quadraticCurveTo(0.26, 0, 0.25, 0.035); so.lineTo(-0.12, 0.045); so.quadraticCurveTo(-0.14, 0.02, -0.11, 0);
+    const sole = new THREE.ExtrudeGeometry(so, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.015, bevelSegments: 3, curveSegments: 8 });
+    for (const g of [upper, sole]) {
+      g.translate(-0.02, 0, -0.05);
+      g.rotateY(Math.PI / 2);
+      g.computeVertexNormals();
+    }
+    return { upper, sole };
+  });
+}
 
-// Le héros : un gamin de Marrakech en maillot vert n°10, jean et tarbouche.
+// Le héros : Yassine, un ado de Marrakech (tee-shirt vert, bermuda cargo, baskets, sac en cuir et tarbouche).
 export function buildRunner() {
   const root = new THREE.Group();
-  const body = new THREE.Group();
-  body.scale.setScalar(0.88);
-  root.add(body);
-  const green = toon('#1f8a55'), skin = toon('#c98b5b'), jeans = toon('#2c4a7c'), red = toon('#c1272d'), hair = toon('#2a1a12');
+  const pivot = joint(root, 0, 0.85, 0);          // pivot au centre du corps (pour les figures)
+  const body = joint(pivot, 0, -0.85, 0);
+  body.scale.setScalar(0.86);
+  const shirt = std('#1f9a5c'), skin = std('#b8784a', 0.6), shorts = std('#c9a46a'), hair = std('#1c120c', 0.5);
+  const red = std('#c1272d', 0.55), white = std('#f5f2ea', 0.5), sock = std('#ffffff', 0.8), leather = std('#9a5a2a', 0.55);
   const r = {};
   r.hips = joint(body, 0, 0.98, 0);
-  const pelvis = ball(0.17, jeans, true); pelvis.scale.set(1.3, 0.8, 0.95); r.hips.add(pelvis);
-  r.torso = joint(r.hips, 0, 0.05, 0);
-  const chest = capsule(0.23, 0.3, green, true); chest.scale.set(1.08, 1, 0.74); chest.position.y = 0.33; r.torso.add(chest);
-  const band = prim(G.cyl, red, 0.245, 0.07, 0.18, 0, 0.1, 0); r.torso.add(band);
-  const num = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: T.jerseyTexture(), transparent: true }));
-  num.position.set(0, 0.4, 0.176); r.torso.add(num);
-  const bag = prim(G.box, toon('#9a6234'), 0.24, 0.2, 0.1, -0.24, 0.12, 0.12); r.torso.add(bag);
-  r.torso.add(prim(G.cyl, skin, 0.075, 0.14, 0.075, 0, 0.64, 0));
-  r.head = joint(r.torso, 0, 0.82, 0);
-  r.head.add(ball(0.2, skin, true));
-  const hr = ball(0.205, hair); hr.scale.set(1, 0.97, 1); hr.position.set(0, 0.02, 0.025); r.head.add(hr);
-  for (const sx of [-1, 1]) r.head.add(prim(G.sphereLow, skin, 0.05, 0.06, 0.04, sx * 0.2, -0.01, 0));
+  const pelvis = lathe([[0, -0.12], [0.15, -0.1], [0.17, 0], [0.16, 0.08], [0, 0.09]], shorts);
+  pelvis.scale.set(1.15, 1, 0.78);
+  r.hips.add(pelvis);
+  // ceinture
+  r.hips.add(prim(G.cyl, std('#5a3a1e', 0.5), 0.172 * 1.15, 0.035, 0.172 * 0.78, 0, 0.06, 0));
+  r.torso = joint(r.hips, 0, 0.06, 0);
+  const chest = lathe([[0, 0], [0.155, 0], [0.165, 0.1], [0.19, 0.26], [0.2, 0.36], [0.18, 0.44], [0.1, 0.5], [0, 0.51]], shirt);
+  chest.scale.set(1.18, 1, 0.7);
+  r.torso.add(chest);
+  // col et petite étoile marocaine sur la poitrine (visible de face)
+  r.torso.add(prim(new THREE.TorusGeometry(0.075, 0.018, 8, 20), std('#17804b'), 1, 1, 1, 0, 0.495, 0).rotateX(Math.PI / 2));
+  const star = new THREE.Group();
+  for (let k = 0; k < 2; k++) { const b = prim(G.box, std('#f2b632', 0.4), 0.07, 0.07, 0.01, 0, 0, 0, false); b.rotation.z = k * Math.PI / 4; star.add(b); }
+  star.position.set(-0.08, 0.36, -0.14);
+  r.torso.add(star);
+  // sac à dos en cuir avec étoile de zellige
+  const bag = mesh(roundedBox(0.3, 0.32, 0.13, 0.05), leather);
+  bag.position.set(0, 0.27, 0.19);
+  r.torso.add(bag);
+  const flap = mesh(roundedBox(0.28, 0.13, 0.04, 0.018), std('#7a4220', 0.55));
+  flap.position.set(0, 0.36, 0.26);
+  r.torso.add(flap);
+  const bstar = new THREE.Group();
+  for (let k = 0; k < 2; k++) { const b = prim(G.box, std('#2a9d8f', 0.4), 0.06, 0.06, 0.012, 0, 0, 0, false); b.rotation.z = k * Math.PI / 4; bstar.add(b); }
+  bstar.position.set(0, 0.2, 0.26);
+  r.torso.add(bstar);
+  for (const sx of [-1, 1]) {
+    const strap = prim(G.box, std('#5a3a1e', 0.5), 0.04, 0.42, 0.025, sx * 0.11, 0.3, -0.13);
+    strap.rotation.x = 0.12;
+    r.torso.add(strap);
+  }
+  r.torso.add(prim(G.cyl, skin, 0.06, 0.12, 0.06, 0, 0.54, 0));
+  // tête
+  r.head = joint(r.torso, 0, 0.72, 0);
+  const head = ball(0.2, skin); head.scale.set(1, 1.08, 1.02); r.head.add(head);
+  for (const sx of [-1, 1]) {
+    const ear = ball(0.05, skin); ear.scale.set(0.5, 1, 0.8); ear.position.set(sx * 0.2, 0, 0.01); r.head.add(ear);
+    const ew = ball(0.045, white); ew.scale.set(1, 1.15, 0.6); ew.position.set(sx * 0.072, 0.03, -0.178); r.head.add(ew);
+    const iris = ball(0.026, std('#2b1a10', 0.3)); iris.scale.set(1, 1.15, 0.5); iris.position.set(sx * 0.07, 0.025, -0.2); r.head.add(iris);
+    const shine = ball(0.008, std('#ffffff', 0.2)); shine.position.set(sx * 0.07 + 0.01, 0.04, -0.212); r.head.add(shine);
+    const brow = prim(G.box, hair, 0.075, 0.018, 0.02, sx * 0.075, 0.105, -0.18, false); brow.rotation.z = -sx * 0.18; r.head.add(brow);
+  }
+  const nose = ball(0.032, std('#a86a40', 0.6)); nose.scale.set(1, 0.9, 1); nose.position.set(0, -0.02, -0.205); r.head.add(nose);
+  const smile = mesh(cached('smile', () => new THREE.TorusGeometry(0.05, 0.012, 6, 14, Math.PI)), std('#6b2a1e', 0.5), false);
+  smile.rotation.z = Math.PI; smile.position.set(0, -0.075, -0.188); smile.rotation.x = 0.25; r.head.add(smile);
+  // cheveux bouclés sous le tarbouche
+  const cap = ball(0.208, hair); cap.scale.set(1.02, 1.05, 1.02); cap.position.set(0, 0.025, 0.035); r.head.add(cap);
+  for (let row = 0; row < 3; row++) {
+    for (let k = 0; k < 11; k++) {
+      const a = Math.PI * (0.3 + (k / 10) * 1.4) + (row % 2) * 0.12;
+      const ca = Math.cos(a);
+      if (row > 0 && ca > -0.1) continue;     // pas de boucles sur les joues : seulement derrière les oreilles
+      if (row === 0 && ca > 0.45) continue;   // dégage le front
+      const y = 0.12 - row * 0.065, rad = 0.2 - row * 0.01;
+      const c = ball(0.05, hair);
+      c.position.set(Math.sin(a) * rad, y, -ca * rad + 0.02);
+      r.head.add(c);
+    }
+  }
   // tarbouche
-  r.fez = joint(r.head, 0, 0.16, 0.01);
-  r.fez.rotation.z = 0.08;
-  r.fez.add(outlined(cached('fezGeo', () => new THREE.CylinderGeometry(0.12, 0.155, 0.24, 18)), red, 0.12));
-  r.fez.children[0].position.y = 0.1;
-  r.fez.add(prim(G.cyl, toon('#7a141b'), 0.121, 0.01, 0.121, 0, 0.225, 0));
+  r.fez = joint(r.head, 0.01, 0.18, 0.015);
+  r.fez.rotation.z = 0.1; r.fez.rotation.x = 0.06;
+  r.fez.add(prim(cached('fezGeo2', () => new THREE.CylinderGeometry(0.125, 0.17, 0.23, 32)), red, 1, 1, 1, 0, 0.1, 0));
+  r.fez.add(prim(cached('fezTop', () => new THREE.CylinderGeometry(0.126, 0.126, 0.012, 32)), std('#8e1820', 0.5), 1, 1, 1, 0, 0.22, 0));
   r.tassel = joint(r.fez, 0, 0.225, 0);
-  r.tassel.add(prim(G.cyl, toon('#111111'), 0.012, 0.17, 0.012, 0, -0.085, 0));
-  r.tassel.add(prim(G.sphereLow, toon('#111111'), 0.03, 0.045, 0.03, 0, -0.18, 0));
+  r.tassel.add(prim(G.cyl, std('#141414', 0.6), 0.012, 0.17, 0.012, 0, -0.085, 0));
+  r.tassel.add(prim(G.sphere, std('#141414', 0.6), 0.03, 0.05, 0.03, 0, -0.18, 0));
   // bras
   for (const s of [-1, 1]) {
     const k = s < 0 ? 'L' : 'R';
-    const sh = r['sh' + k] = joint(r.torso, s * 0.3, 0.5, 0);
-    const up = capsule(0.075, 0.17, green, true); up.position.y = -0.14; sh.add(up);
-    const el = r['el' + k] = joint(sh, 0, -0.3, 0);
-    const fo = capsule(0.062, 0.16, skin, true); fo.position.y = -0.12; el.add(fo);
-    const hand = ball(0.07, skin, true); hand.position.y = -0.27; el.add(hand);
+    const sh = r['sh' + k] = joint(r.torso, s * 0.235, 0.43, 0);
+    sh.add(ball(0.085, shirt));
+    const sleeve = prim(cached('sleeve', () => new THREE.CylinderGeometry(0.085, 0.078, 0.15, 20)), shirt, 1, 1, 1, 0, -0.07, 0);
+    sh.add(sleeve);
+    sh.add(prim(cached('uarm', () => new THREE.CylinderGeometry(0.058, 0.052, 0.18, 16)), skin, 1, 1, 1, 0, -0.18, 0));
+    const el = r['el' + k] = joint(sh, 0, -0.27, 0);
+    el.add(ball(0.052, skin));
+    el.add(lathe([[0, -0.24], [0.04, -0.235], [0.047, -0.15], [0.054, -0.04], [0.05, 0], [0, 0.01]], skin, 16));
+    const hand = ball(0.062, skin); hand.scale.set(0.85, 1.05, 0.95); hand.position.y = -0.28; el.add(hand);
   }
   // jambes
+  const { upper, sole } = sneakerGeos();
   for (const s of [-1, 1]) {
     const k = s < 0 ? 'L' : 'R';
-    const th = r['th' + k] = joint(r.hips, s * 0.11, -0.05, 0);
-    const thigh = capsule(0.1, 0.25, jeans, true); thigh.position.y = -0.2; th.add(thigh);
-    const kn = r['kn' + k] = joint(th, 0, -0.43, 0);
-    const shin = capsule(0.085, 0.25, jeans, true); shin.position.y = -0.19; kn.add(shin);
-    const an = r['an' + k] = joint(kn, 0, -0.42, 0);
-    const shoe = capsule(0.08, 0.16, toon('#f4f1ea'), true); shoe.rotation.x = Math.PI / 2; shoe.position.set(0, -0.02, -0.06); an.add(shoe);
-    an.add(prim(G.box, toon('#c0392b'), 0.15, 0.035, 0.32, 0, -0.095, -0.06));
+    const th = r['th' + k] = joint(r.hips, s * 0.105, -0.02, 0);
+    th.add(prim(cached('shortsLeg', () => new THREE.CylinderGeometry(0.115, 0.125, 0.36, 20)), shorts, 1, 1, 1, 0, -0.17, 0));
+    th.add(prim(G.box, std('#b08c55'), 0.06, 0.09, 0.02, s * 0.11, -0.2, 0, false).rotateY(s * Math.PI / 2));   // poche cargo
+    th.add(prim(G.cyl, skin, 0.065, 0.1, 0.065, 0, -0.38, 0));
+    const kn = r['kn' + k] = joint(th, 0, -0.42, 0);
+    kn.add(ball(0.066, skin));
+    kn.add(lathe([[0, -0.3], [0.05, -0.3], [0.056, -0.2], [0.075, -0.1], [0.068, 0], [0, 0.01]], skin, 18));
+    kn.add(prim(G.cyl, sock, 0.058, 0.08, 0.058, 0, -0.34, 0));
+    const an = r['an' + k] = joint(kn, 0, -0.4, 0);
+    const shoe = mesh(upper, white); shoe.position.y = -0.04; an.add(shoe);
+    const so = mesh(sole, red); so.position.y = -0.06; an.add(so);
+    an.add(prim(G.box, red, 0.012, 0.05, 0.12, s * 0.07, 0.03, -0.03, false));   // bande latérale
   }
-  root.traverse(o => { if (o.isMesh && o.material !== OUTLINE) o.castShadow = true; });
-  num.castShadow = false;
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.userData.rig = r;
+  root.userData.pivot = pivot;
   return root;
 }
 
 // Pose cible du coureur, interpolée en douceur.
-const POSE_KEYS = ['hipsY', 'torso', 'thL', 'knL', 'thR', 'knR', 'shLx', 'shLz', 'elL', 'shRx', 'shRz', 'elR', 'anL', 'anR'];
+const POSE_KEYS = ['hipsY', 'hipsYaw', 'lean', 'twist', 'headYaw', 'headPitch', 'thL', 'thLz', 'knL', 'thR', 'thRz', 'knR',
+  'shLx', 'shLz', 'elL', 'shRx', 'shRz', 'elR', 'anL', 'anR', 'roll'];
 export function animateRunner(root, mode, ph, dt, extra) {
   const r = root.userData.rig;
-  const s = Math.sin(ph), c = Math.cos(ph);
-  let t;
+  const s = Math.sin(ph), c = Math.cos(ph), t = extra && extra.time || 0;
+  const base = { hipsY: 0.98, hipsYaw: 0, lean: 0, twist: 0, headYaw: 0, headPitch: 0, thL: 0, thLz: 0, knL: 0, thR: 0, thRz: 0, knR: 0,
+    shLx: 0, shLz: -0.12, elL: 0.2, shRx: 0, shRz: 0.12, elR: 0.2, anL: 0, anR: 0, roll: 0 };
+  let p;
   if (mode === 'run') {
-    t = {
-      hipsY: 0.98 + Math.abs(c) * 0.05, torso: -0.14,
-      thL: s * 0.85, knL: -(0.25 + 1.35 * Math.max(0, c)), thR: -s * 0.85, knR: -(0.25 + 1.35 * Math.max(0, -c)),
-      shLx: -s * 0.8, shLz: -0.12, elL: 1.2, shRx: s * 0.8, shRz: 0.12, elR: 1.2, anL: 0.2, anR: 0.2
+    p = {
+      hipsY: 0.96 + Math.abs(c) * 0.07, hipsYaw: -s * 0.14, lean: -0.24, twist: s * 0.3, headYaw: -s * 0.2, headPitch: 0.12,
+      thL: s * 1.0, knL: -(0.3 + 1.55 * Math.max(0, c)), thR: -s * 1.0, knR: -(0.3 + 1.55 * Math.max(0, -c)),
+      shLx: -s * 1.05, shLz: -0.18, elL: 1.55 + s * 0.15, shRx: s * 1.05, shRz: 0.18, elR: 1.55 - s * 0.15,
+      anL: 0.45 * Math.max(0, -s), anR: 0.45 * Math.max(0, s)
     };
   } else if (mode === 'jump') {
-    t = { hipsY: 0.98, torso: -0.05, thL: 1.0, knL: -1.5, thR: 0.2, knR: -0.5, shLx: -2.5, shLz: -0.5, elL: 0.4, shRx: -2.5, shRz: 0.5, elR: 0.4, anL: 0.3, anR: 0 };
+    p = { hipsY: 0.98, lean: -0.15, headPitch: 0.15, thL: 1.25, knL: -1.9, thR: 0.35, knR: -0.9, shLx: -2.5, shLz: -0.65, elL: 0.6, shRx: -2.3, shRz: 0.75, elR: 0.5, anL: 0.3, anR: 0.4 };
   } else if (mode === 'slide') {
-    t = { hipsY: 0.45, torso: -0.95, thL: 1.6, knL: -2.4, thR: 1.5, knR: -2.3, shLx: 0.9, shLz: -0.3, elL: 1.4, shRx: 0.9, shRz: 0.3, elR: 1.4, anL: 0.5, anR: 0.5 };
+    // glissade de baseball : buste en arrière, jambe tendue devant, une main qui frôle le sol
+    p = { hipsY: 0.3, lean: 0.95, headPitch: -0.75, thL: 1.5, knL: -0.12, thR: 1.15, knR: -1.35, shLx: 0.75, shLz: -0.7, elL: 0.15,
+      shRx: -1.3, shRz: 0.5, elR: 0.9, anL: -0.3, anR: 0.1, roll: 0.08 };
   } else if (mode === 'fly') {
-    t = { hipsY: 0.42, torso: -0.1, thL: 1.5, knL: -2.2, thR: 1.5, knR: -2.2, shLx: -0.4, shLz: -1.1, elL: 0.5, shRx: -0.4, shRz: 1.1, elR: 0.5, anL: 0, anR: 0 };
+    p = { hipsY: 0.38, lean: -0.05, thL: 1.45, thLz: -0.7, knL: -2.4, thR: 1.45, thRz: 0.7, knR: -2.4, shLx: -0.3, shLz: -1.2, elL: 0.4, shRx: -0.3, shRz: 1.2, elR: 0.4, headPitch: 0.1 };
   } else if (mode === 'fall') {
-    t = { hipsY: 0.85, torso: 0.45, thL: 0.6, knL: -0.6, thR: -0.2, knR: -0.3, shLx: -2.8, shLz: -0.7, elL: 0.3, shRx: -2.8, shRz: 0.7, elR: 0.3, anL: 0, anR: 0 };
+    p = { hipsY: 0.88, lean: 0.5, headPitch: -0.4, thL: 0.7, knL: -0.7, thR: -0.2, knR: -0.4, shLx: -2.8, shLz: -0.8, elL: 0.3, shRx: -2.8, shRz: 0.8, elR: 0.3 };
   } else {
-    t = { hipsY: 0.98, torso: 0, thL: 0, knL: 0, thR: 0, knR: 0, shLx: 0, shLz: -0.1, elL: 0.2, shRx: 0, shRz: 0.1, elR: 0.2, anL: 0, anR: 0 };
+    // repos (menu) : respiration, regard qui balaie le souk
+    p = { hipsY: 0.98 + Math.sin(t * 2) * 0.008, headYaw: Math.sin(t * 0.6) * 0.45, headPitch: 0.05 + Math.sin(t * 0.9) * 0.05,
+      shLz: -0.1 - Math.sin(t * 2) * 0.02, shRz: 0.1 + Math.sin(t * 2) * 0.02, elL: 0.25, elR: 0.25, twist: Math.sin(t * 0.6) * 0.08 };
   }
-  const cur = root.userData.pose || (root.userData.pose = { ...t });
-  const k = Math.min(1, dt * (mode === 'run' ? 22 : 14));
-  for (const key of POSE_KEYS) cur[key] += (t[key] - cur[key]) * k;
-  r.hips.position.y = cur.hipsY; r.torso.rotation.x = cur.torso;
-  r.thL.rotation.x = cur.thL; r.knL.rotation.x = cur.knL; r.thR.rotation.x = cur.thR; r.knR.rotation.x = cur.knR;
+  const tgt = { ...base, ...p };
+  const cur = root.userData.pose || (root.userData.pose = { ...tgt });
+  const k = Math.min(1, dt * (mode === 'run' ? 24 : 13));
+  for (const key of POSE_KEYS) cur[key] += (tgt[key] - cur[key]) * k;
+  r.hips.position.y = cur.hipsY; r.hips.rotation.y = cur.hipsYaw;
+  r.torso.rotation.x = cur.lean; r.torso.rotation.y = cur.twist;
+  r.head.rotation.y = cur.headYaw - cur.twist * 0.6; r.head.rotation.x = cur.headPitch - cur.lean * 0.5;
+  r.thL.rotation.x = cur.thL; r.thL.rotation.z = cur.thLz; r.knL.rotation.x = cur.knL;
+  r.thR.rotation.x = cur.thR; r.thR.rotation.z = cur.thRz; r.knR.rotation.x = cur.knR;
   r.shL.rotation.x = cur.shLx; r.shL.rotation.z = cur.shLz; r.elL.rotation.x = cur.elL;
   r.shR.rotation.x = cur.shRx; r.shR.rotation.z = cur.shRz; r.elR.rotation.x = cur.elR;
   r.anL.rotation.x = cur.anL; r.anR.rotation.x = cur.anR;
-  r.tassel.rotation.x = 0.5 + Math.sin(ph * 0.5) * 0.35 + (extra && extra.vy > 0 ? -0.6 : 0);
+  r.hips.rotation.z = cur.roll;
+  r.tassel.rotation.x = 0.5 + Math.sin(ph * 0.5) * 0.35 + (extra && extra.vy > 0 ? -0.6 : 0) + (mode === 'slide' ? -0.8 : 0);
   r.tassel.rotation.z = Math.sin(ph * 0.7) * 0.2;
 }
 
@@ -671,39 +778,39 @@ export function animateRunner(root, mode, ph, dt, extra) {
 export function buildMonkey() {
   const root = new THREE.Group();
   root.scale.setScalar(0.85);
-  const fur = toon('#9b7651'), dark = toon('#6e5034'), light = toon('#c09a6e'), skin = toon('#e0a08a');
+  const fur = std('#9b7651', 0.85), dark = std('#6e5034', 0.85), light = std('#c09a6e', 0.85), skin = std('#e0a08a', 0.6);
   const r = {};
   r.body = joint(root, 0, 0.62, 0);
-  const trunk = ball(0.3, fur, true); trunk.scale.set(1, 0.9, 1.35); r.body.add(trunk);
+  const trunk = ball(0.3, fur); trunk.scale.set(1, 0.9, 1.35); r.body.add(trunk);
   const rump = ball(0.22, light); rump.position.set(0, 0.02, 0.28); rump.scale.set(1, 0.9, 0.6); r.body.add(rump);
   r.body.add(prim(G.sphereLow, dark, 0.06, 0.06, 0.06, 0, 0.12, 0.42));
   r.head = joint(r.body, 0, 0.2, -0.42);
-  r.head.add(ball(0.21, fur, true));
+  r.head.add(ball(0.21, fur));
   r.head.add(prim(G.cone, dark, 0.09, 0.14, 0.09, 0, 0.22, 0.02));
-  for (const s of [-1, 1]) { r.head.add(prim(G.sphere, skin, 0.085, 0.1, 0.05, s * 0.22, 0.03, 0.02)); r.head.add(prim(G.sphereLow, toon('#c27b66'), 0.05, 0.065, 0.03, s * 0.225, 0.03, 0.045)); }
+  for (const s of [-1, 1]) { r.head.add(prim(G.sphere, skin, 0.085, 0.1, 0.05, s * 0.22, 0.03, 0.02)); r.head.add(prim(G.sphereLow, std('#c27b66'), 0.05, 0.065, 0.03, s * 0.225, 0.03, 0.045)); }
   const face = prim(G.sphere, skin, 0.15, 0.16, 0.08, 0, -0.03, -0.16); r.head.add(face);
-  for (const s of [-1, 1]) r.head.add(prim(G.sphereLow, toon('#1a1008'), 0.03, 0.035, 0.02, s * 0.06, 0.03, -0.235));
-  r.head.add(prim(G.sphereLow, toon('#c27b66'), 0.08, 0.06, 0.05, 0, -0.08, -0.22));
+  for (const s of [-1, 1]) r.head.add(prim(G.sphereLow, std('#1a1008'), 0.03, 0.035, 0.02, s * 0.06, 0.03, -0.235));
+  r.head.add(prim(G.sphereLow, std('#c27b66'), 0.08, 0.06, 0.05, 0, -0.08, -0.22));
   // tarbouche volé, visible quand le singe attrape le joueur
   r.fez = joint(r.head, 0.03, 0.2, 0);
   r.fez.rotation.z = -0.25;
-  r.fez.add(outlined(cached('fezGeo', () => new THREE.CylinderGeometry(0.12, 0.155, 0.24, 18)), toon('#c1272d'), 0.12));
+  r.fez.add(mesh(cached('fezGeo2', () => new THREE.CylinderGeometry(0.125, 0.17, 0.23, 32)), std('#c1272d', 0.55)));
   r.fez.children[0].position.y = 0.1;
   r.fez.visible = false;
   for (const s of [-1, 1]) {
     const k = s < 0 ? 'L' : 'R';
     const sh = r['ar' + k] = joint(r.body, s * 0.2, -0.05, -0.3);
-    const up = capsule(0.07, 0.2, s < 0 ? dark : fur, true); up.position.y = -0.16; sh.add(up);
+    const up = capsule(0.07, 0.2, s < 0 ? dark : fur); up.position.y = -0.16; sh.add(up);
     const el = r['fo' + k] = joint(sh, 0, -0.32, 0);
-    const fo = capsule(0.06, 0.18, s < 0 ? dark : fur, true); fo.position.y = -0.11; el.add(fo);
-    const h = ball(0.065, skin, true); h.position.y = -0.24; el.add(h);
+    const fo = capsule(0.06, 0.18, s < 0 ? dark : fur); fo.position.y = -0.11; el.add(fo);
+    const h = ball(0.065, skin); h.position.y = -0.24; el.add(h);
     const hp = r['hp' + k] = joint(r.body, s * 0.19, -0.05, 0.3);
-    const th = capsule(0.09, 0.18, fur, true); th.position.y = -0.14; hp.add(th);
+    const th = capsule(0.09, 0.18, fur); th.position.y = -0.14; hp.add(th);
     const kn = r['kn' + k] = joint(hp, 0, -0.27, 0);
-    const sn = capsule(0.07, 0.16, fur, true); sn.position.y = -0.1; kn.add(sn);
-    const ft = prim(G.sphereLow, toon('#4a3220'), 0.07, 0.05, 0.12, 0, -0.22, -0.03); kn.add(ft);
+    const sn = capsule(0.07, 0.16, fur); sn.position.y = -0.1; kn.add(sn);
+    const ft = prim(G.sphereLow, std('#4a3220'), 0.07, 0.05, 0.12, 0, -0.22, -0.03); kn.add(ft);
   }
-  root.traverse(o => { if (o.isMesh && o.material !== OUTLINE) o.castShadow = true; });
+  root.traverse(o => { if (o.isMesh) o.castShadow = true; });
   root.userData.rig = r;
   return root;
 }
@@ -719,6 +826,11 @@ export function animateMonkey(root, mode, ph, dt) {
     body = 1.0; by = 0.82 + Math.abs(s) * 0.1;
     aL = 2.4 + s * 0.4; aR = 2.4 - s * 0.4; fL = -0.4; fR = -0.4;
     hL = -1.0 + s * 0.8; hR = -1.0 - s * 0.8; kL = -0.5 - Math.max(0, s); kR = -0.5 - Math.max(0, -s); head = -0.9;
+  } else if (mode === 'sit') {
+    // assis, l'air malicieux, se gratte la tête
+    body = 0.9; by = 0.42;
+    aL = 0.6; aR = 3.0 + Math.sin(ph * 4) * 0.15; fL = 0.5; fR = 1.6;
+    hL = 1.5; hR = 1.4; kL = -1.9; kR = -1.8; head = -0.75 + Math.sin(ph * 0.5) * 0.1;
   } else {
     // agrippé au dos du joueur, bras levés en triomphe
     body = 1.2; by = 0.8;
@@ -727,7 +839,7 @@ export function animateMonkey(root, mode, ph, dt) {
   }
   const k = Math.min(1, dt * 14);
   const L = (o, v) => { o.rotation.x += (v - o.rotation.x) * k; };
-  const spread = mode === 'gallop' ? 0 : mode === 'chase' ? 0.55 : 0.35;
+  const spread = mode === 'gallop' ? 0 : mode === 'chase' ? 0.55 : mode === 'sit' ? 0.25 : 0.35;
   r.arL.rotation.z += (-spread - r.arL.rotation.z) * k;
   r.arR.rotation.z += (spread - r.arR.rotation.z) * k;
   L(r.body, body); r.body.position.y += (by - r.body.position.y) * k;
