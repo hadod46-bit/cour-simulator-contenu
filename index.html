@@ -97,11 +97,11 @@ header.top h1 span { color: var(--accent); font-style: italic; font-weight: 400;
 .seg + .hint { margin: 0; }
 .consentement { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--muted); }
 .consentement input { margin-top: 3px; accent-color: var(--accent); }
-.precision { border: 1px solid var(--brass); background: var(--brass-soft); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; }
-.precision-question { margin: 0; font-weight: 600; }
-.precision-libre { display: flex; gap: 8px; flex-wrap: wrap; }
-.precision-libre input { flex: 1; min-width: 12em; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; }
-.precision > .ghost { justify-self: start; }
+.fil { display: grid; gap: 12px; }
+.fil:empty { display: none; }
+.reponse .reponse-courte { font-weight: 600; font-size: 16px; margin: 0 0 8px; }
+.reponse .quote p { margin: 0 0 10px; }
+.reponse ul.ok { margin: 4px 0 6px; }
 .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--ink); font-size: 14px; }
@@ -362,7 +362,6 @@ const MATIERES = {
   famille: "Droit de la famille (Moudawana : mariage, divorce, garde, pension alimentaire, filiation, successions) — juridiction : tribunal de première instance, section de la famille",
   administratif: "Droit administratif et commande publique (marchés publics, délais de paiement et intérêts moratoires, partenariats public-privé, fonction publique, décisions des communes et collectivités, responsabilité de l'État, expropriation) — juridiction : tribunal administratif",
 };
-const VILLES = ["Casablanca", "Rabat", "Marrakech", "Fès", "Tanger", "Agadir", "Oujda", "Meknès", "Kénitra", "Tétouan"];
 const hasard = t => t[Math.floor(Math.random() * t.length)];
 
 const CADRE = `Tu animes « Cour Simulator », un entraînement à la plaidoirie en droit marocain. Base de textes disponible via les outils (clés des codes principaux) :
@@ -418,7 +417,7 @@ const bandLabel = { good: "Solide", mid: "Correct", bad: "Fragile" };
 const estArabe = t => (String(t).match(/[؀-ۿ]/g) || []).length > String(t).length * 0.3;
 
 const MESSAGES_ERREUR = {
-  not_granted: "Vous n'avez pas autorisé cette page à utiliser Claude. Le mode Audience IA reste indisponible ; la démo hors ligne fonctionne.",
+  not_granted: "Vous n'avez pas autorisé cette page à utiliser Claude. Les fonctions IA restent indisponibles ; l'entraînement hors ligne fonctionne.",
   sampling_disabled: "Claude n'est pas disponible pour ce compte. La démo hors ligne fonctionne.",
   rate_limited: "Trop de demandes à Claude pour le moment. Réessayez dans quelques minutes.",
   session_expired: "Votre session Claude a expiré : reconnectez-vous puis réessayez.",
@@ -696,12 +695,12 @@ async function lireCode(cle, depuis = 0) {
    ============================================================ */
 const NOMS_MATIERES = { tous: "Toutes", affaires: "Affaires", civil: "Civil", penal: "Pénal", travail: "Travail", famille: "Famille", fiscal: "Fiscal", administratif: "Administratif" };
 const ICONES = {
-  ia: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+  question: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5"/><path d="M12 15.5v.01"/></svg>',
   moncas: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/></svg>',
   hors: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
 };
 const PARCOURS = {
-  ia: { titre: "Cas pratique IA", sous: "Décrivez l'affaire voulue : l'IA crée le dossier, plaide contre vous et vous juge.", ia: true },
+  question: { titre: "Demander à l'IA", sous: "Posez une question de droit : l'IA répond à partir des textes et de la jurisprudence, articles à l'appui.", ia: true },
   moncas: { titre: "Simuler mon cas", sous: "Exposez votre propre situation : l'audience s'ouvre sur vos faits.", ia: true },
   hors: { titre: "Entraînement hors ligne", sous: "78 affaires corrigées dans toutes les matières, dont 10 cas complexes, avec ou sans internet.", ia: false },
 };
@@ -725,9 +724,9 @@ function renderAccueil() {
   app.innerHTML = `
     <section class="accueil">
       <div class="hero">
-        <p class="eyebrow">Entraînement à la plaidoirie · droit marocain</p>
-        <h2 class="hero-titre">Plaidez. Soyez jugé. Progressez.</h2>
-        <p class="hero-sous">Un avocat adverse et un juge s'appuient sur ${Object.keys(BASE.codes || {}).length || 145} textes officiels${nbDecisions ? ` et ${nbDecisions} décisions de justice` : ""} pour répondre à vos arguments et les évaluer.</p>
+        <p class="eyebrow">Droit marocain · questions et plaidoirie</p>
+        <h2 class="hero-titre">Comprenez. Plaidez. Progressez.</h2>
+        <p class="hero-sous">Posez vos questions de droit, plaidez votre propre cas ou entraînez-vous : l'IA s'appuie sur ${Object.keys(BASE.codes || {}).length || 145} textes officiels${nbDecisions ? ` et ${nbDecisions} décisions de justice` : ""}, et chaque article cité est vérifié.</p>
       </div>
       <div class="parcours">${Object.entries(PARCOURS).map(([k, p]) => `
         <button class="carte" data-parcours="${k}">
@@ -742,7 +741,7 @@ function renderAccueil() {
     </section>`;
   app.querySelectorAll("[data-parcours]").forEach(b => b.onclick = () => { if (!b.disabled) renderParcours(b.dataset.parcours); });
   iaDispo.then(ok => {
-    for (const k of ["ia", "moncas"]) {
+    for (const k of ["question", "moncas"]) {
       const carte = app.querySelector(`[data-parcours="${k}"]`), etat = app.querySelector(`#etat-${k}`); if (!carte) continue;
       if (ok) etat.textContent = IA.restant != null ? `${IA.restant} appel${IA.restant > 1 ? "s" : ""} IA restant${IA.restant > 1 ? "s" : ""} aujourd'hui` : "IA disponible";
       else { carte.disabled = true; etat.textContent = raisonSansIA(); }
@@ -806,65 +805,112 @@ function renderParcours(k) {
       <div class="formulaire" id="form"></div>
     </section>`;
   app.querySelector("#retour").onclick = renderAccueil;
-  ({ ia: formCasIA, moncas: formMonCas, hors: formHorsLigne })[k](app.querySelector("#form"));
+  ({ question: formQuestion, moncas: formMonCas, hors: formHorsLigne })[k](app.querySelector("#form"));
   window.scrollTo({ top: 0 });
 }
 
-/* --- Parcours 1 : cas pratique généré par l'IA --- */
-function formCasIA(f) {
-  if (!REGLAGES.cote || REGLAGES.cote === "moi") REGLAGES.cote = "defense";
+/* --- Parcours 1 : poser une question de droit à l'IA --- */
+// Fil de la conversation, conservé pendant la visite (les questions suivantes s'appuient sur les précédentes).
+const QR = { fil: [] };
+const EXEMPLES_QUESTIONS = [
+  "Mon employeur peut-il me licencier pendant un arrêt maladie ?",
+  "Quel délai pour contester un redressement fiscal ?",
+  "Mon locataire commercial ne paie plus : comment récupérer le local ?",
+  "Une commune paie mon marché avec 5 mois de retard : ai-je droit à des intérêts ?",
+];
+
+function formQuestion(f) {
   f.innerHTML = `
+    <div class="fil" id="fil"></div>
     <div class="champ">
-      <label class="champ-titre" for="demande">Quel cas pratique voulez-vous ?</label>
-      <textarea id="demande" rows="3" placeholder="Ex. : un licenciement pour faute grave sans audition, une rupture de bail commercial, un chèque sans provision… Laissez vide pour une affaire au hasard."></textarea>
+      <label class="champ-titre" for="question">Votre question</label>
+      <textarea id="question" rows="4" placeholder="Décrivez la situation et ce que vous voulez savoir : qui, quoi, quand, quels montants, quels documents…"></textarea>
+      <div class="chips" id="exemples">${EXEMPLES_QUESTIONS.map(q => `<button type="button" class="chip" data-exemple="${esc(q)}">${esc(q)}</button>`).join("")}</div>
     </div>
-    ${choixMatiere("Matière", true)}
-    ${choixCote({ defense: "Défense", demande: "Demande / partie civile", hasard: "Au hasard" })}
-    ${choixNiveau()}
-    ${caseEnregistrer()}
-    <div id="precision"></div>
-    <div class="actions"><button class="primary" id="go">Préparer l'affaire</button><span class="status" id="startStatus"></span></div>`;
+    ${choixMatiere("Domaine (facultatif)", true)}
+    <label class="consentement"><input type="checkbox" id="enregistrer" ${REGLAGES.enregistrer ? "checked" : ""}>
+      <span>Enregistrer mes questions et les réponses pour améliorer Cour Simulator. N'indiquez pas de vrais noms ni de données personnelles.</span></label>
+    <div class="actions"><button class="primary" id="go" disabled>Poser la question</button><span class="status" id="startStatus"></span></div>
+    <p class="disclaimer">Réponse indicative fondée sur les textes de la base, pas un avis juridique : pour une affaire réelle, consultez un avocat.</p>`;
   brancherReglages(f);
-  const go = f.querySelector("#go"), st = f.querySelector("#startStatus"), zone = f.querySelector("#precision");
-  const lancer = (demande, precision = "") => startIA({ parcours: "ia", demande, precision });
-  go.onclick = async () => {
-    const demande = f.querySelector("#demande").value.trim();
-    if (!demande) return lancer("");
-    go.disabled = true; st.className = "status"; st.textContent = "L'IA examine votre demande…"; zone.innerHTML = "";
-    try {
-      await chargerBase();
-      const an = await analyserDemande(demande);
-      st.textContent = "";
-      if (an?.matiere && NOMS_MATIERES[an.matiere] && !REGLAGES.matiere) {
-        REGLAGES.matiere = an.matiere;
-        f.querySelectorAll("[data-matiere]").forEach(x => x.setAttribute("aria-pressed", x.dataset.matiere === an.matiere));
-      }
-      if (!an || an.precise !== false) return lancer(demande, an?.resume || "");
-      // Demande trop générale : l'IA propose des pistes, ou un tirage au hasard dans le domaine.
-      zone.innerHTML = `
-        <div class="precision">
-          <p class="precision-question">${esc(an.question || "Voulez-vous préciser le thème ?")}</p>
-          <div class="chips">${(an.options || []).slice(0, 8).map(o => `<button type="button" class="chip" data-option="${esc(o)}">${esc(o)}</button>`).join("")}</div>
-          <div class="precision-libre"><input id="precisionLibre" placeholder="Ou précisez avec vos mots…"><button class="ghost" id="precisionOk">Valider</button></div>
-          <button class="ghost" id="auHasard">Peu importe : une affaire au hasard dans ce domaine</button>
-        </div>`;
-      zone.querySelectorAll("[data-option]").forEach(b => b.onclick = () => lancer(demande, b.dataset.option));
-      zone.querySelector("#precisionOk").onclick = () => { const v = zone.querySelector("#precisionLibre").value.trim(); if (v) lancer(demande, v); };
-      zone.querySelector("#auHasard").onclick = () => lancer(demande, "au hasard dans ce domaine");
-      zone.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      go.disabled = false;
-    } catch (e) { go.disabled = false; st.className = "status err"; st.textContent = messageErreur(e); }
-  };
+  const ta = f.querySelector("#question"), go = f.querySelector("#go");
+  ta.oninput = () => { go.disabled = ta.value.trim().split(/\s+/).filter(Boolean).length < 4; };
+  f.querySelectorAll("[data-exemple]").forEach(b => b.onclick = () => { ta.value = b.dataset.exemple; ta.oninput(); ta.focus(); });
+  go.onclick = () => poserQuestion(f, ta.value.trim());
+  // Revenir sur la page garde les échanges déjà faits.
+  for (const e of QR.fil) afficherEchange(f.querySelector("#fil"), e);
+  if (QR.fil.length) f.querySelector("#exemples").hidden = true;
 }
 
-async function analyserDemande(demande) {
-  const prompt = `Tu prépares un entraînement à la plaidoirie en droit marocain. Un utilisateur demande ce cas pratique : « ${demande} ».
-${REGLAGES.matiere ? `Matière déjà choisie : ${NOMS_MATIERES[REGLAGES.matiere]}.` : ""}
-Décide si la demande est assez précise pour créer une affaire. Elle est PRÉCISE si elle désigne une situation ou une question juridique identifiable (ex. « divorce pour discorde avec garde des enfants », « licenciement pour faute grave sans audition »). Elle est VAGUE si elle ne cite qu'un domaine large (ex. « droit de la famille », « un cas de pénal », « droit des affaires »).
-Si elle est vague, pose UNE question courte pour la préciser et propose 4 à 6 sous-thèmes concrets de ce domaine en droit marocain (ex. pour la famille : mariage, divorce, garde des enfants, pension alimentaire, filiation, successions).
+function afficherEchange(fil, e) {
+  const q = document.createElement("article");
+  q.className = "speech user";
+  q.innerHTML = `<div class="who"><span class="dot" style="background:currentColor"></span>Votre question</div><p class="quote">${esc(e.question)}</p>`;
+  fil.appendChild(q);
+  if (!e.reponse) return q;
+  const r = e.reponse, liste = (titre, l) => l?.length ? `<p class="note">${titre}</p><ul class="ok">${l.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
+  const el = document.createElement("article");
+  el.className = "speech judge reponse";
+  el.innerHTML = `<div class="who"><span class="dot" style="background:currentColor"></span>Réponse</div>
+    <p class="reponse-courte">${esc(r.reponse_courte)}</p>
+    <div class="quote">${String(r.explication || "").split(/\n{2,}/).map(p => `<p>${esc(p.trim())}</p>`).join("")}</div>
+    ${liste("Démarches", r.demarches)}
+    ${liste("Pour affiner la réponse, précisez :", r.precisions_utiles)}
+    ${r.citations?.length ? `<p class="note">Textes appliqués (cliquez pour les lire) :</p>${puceCitations(r.citations)}` : ""}
+    ${r.hors_base ? `<p class="note">Une partie de la question dépasse les textes disponibles dans la base : vérifiez auprès d'un professionnel.</p>` : ""}`;
+  fil.appendChild(el);
+  return el;
+}
+
+async function poserQuestion(f, question) {
+  const go = f.querySelector("#go"), st = f.querySelector("#startStatus"), fil = f.querySelector("#fil"), ta = f.querySelector("#question");
+  go.disabled = true; st.className = "status"; st.textContent = "Chargement des codes…";
+  try { await chargerBase(); } catch { st.className = "status err"; st.textContent = "La base des codes n'a pas pu être chargée."; go.disabled = false; return; }
+  st.textContent = "";
+  f.querySelector("#exemples").hidden = true;
+  const echange = { question, matiere: REGLAGES.matiere, reponse: null };
+  afficherEchange(fil, echange);
+  const att = document.createElement("article");
+  att.className = "speech pending";
+  att.innerHTML = `<span>L'IA consulte les textes…</span><span class="trace"></span>`;
+  fil.appendChild(att);
+  att.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const precedents = QR.fil.slice(-3).map(e => `Question : ${e.question}\nRéponse : ${e.reponse.reponse_courte}`).join("\n\n");
+  const prompt = `${cadre()}
+
+Tâche : tu es un juriste marocain. Réponds à la question d'un utilisateur (étudiant, professionnel ou particulier) en t'appuyant UNIQUEMENT sur les textes de la base et, si elle l'éclaire, sur sa jurisprudence.
+${REGLAGES.matiere ? `Domaine indiqué : ${MATIERES[REGLAGES.matiere]}.` : ""}
+${precedents ? `Échanges précédents, pour le contexte :\n${precedents}\n` : ""}
+Question : « ${question} »
+
+Méthode :
+1. Identifie la ou les questions juridiques posées.
+2. Cherche (chercher_articles) et lis (lire_article) les articles applicables ; consulte chercher_jurisprudence si une décision peut éclairer la réponse.
+3. Applique les textes aux éléments fournis par l'utilisateur, sans inventer de faits. Si un élément manque et change la réponse, raisonne par hypothèses (« si…, alors… ») et indique les précisions utiles.
+4. Indique les démarches concrètes (juridiction compétente, délais, pièces à réunir) quand c'est pertinent, uniquement d'après les textes lus.
+5. Si la base ne contient pas le texte nécessaire, dis-le franchement et mets "hors_base" à true, plutôt que de répondre de mémoire.
+Écris en français clair, accessible à un non-juriste, en citant les articles dans le texte (« article 41 du Code du travail »).
+
 Réponds uniquement par ce JSON :
-{"precise":true,"matiere":"affaires|civil|penal|travail|famille|fiscal|administratif","resume":"le thème reformulé en une ligne","question":"","options":[]}`;
-  return demander(prompt, { json: true, tier: "quick", sansOutils: true });
+{"reponse_courte":"la réponse en une ou deux phrases","explication":"150 à 400 mots, paragraphes séparés par une ligne vide","demarches":["…"],"precisions_utiles":["…"],"citations":[{"code":"…","article":"…"}],"hors_base":false}`;
+  CTL = new AbortController();
+  try {
+    const r = await demander(prompt, { trace: t => { att.querySelector(".trace").textContent = "↳ " + t; }, signal: CTL.signal });
+    att.remove();
+    if (!r?.reponse_courte) throw { code: "invalid_json" };
+    echange.reponse = r;
+    fil.lastElementChild.remove();          // la question affichée seule : on réaffiche question + réponse
+    afficherEchange(fil, echange).scrollIntoView({ behavior: "smooth", block: "start" });
+    QR.fil.push(echange);
+    ta.value = ""; ta.placeholder = "Une autre question, ou une précision sur la précédente…";
+    if (REGLAGES.enregistrer) enregistrerFiche({ cree: new Date().toISOString(), parcours: "question", matiere: REGLAGES.matiere || "",
+      question: question.slice(0, 3000), reponse: { courte: String(r.reponse_courte).slice(0, 1000), explication: String(r.explication || "").slice(0, 5000) },
+      citations: (r.citations || []).slice(0, 20), hors_base: !!r.hors_base });
+  } catch (e) {
+    att.remove(); fil.lastElementChild.remove();
+    if (e?.code !== "cancelled") { st.className = "status err"; st.textContent = messageErreur(e); }
+    go.disabled = false;
+  }
 }
 
 /* --- Parcours 2 : le cas de l'utilisateur --- */
@@ -953,7 +999,6 @@ async function enregistrerAudience(verdict, pct) {
   const tronquer = (s, n) => String(s ?? "").slice(0, n);
   const fiche = {
     cree: new Date().toISOString(), parcours: S.parcours, niveau: S.level, cote: S.cote, matiere: S.matiere || "",
-    demande: tronquer(S.demande, 1000), precision: tronquer(S.precision, 500),
     faits: tronquer(S.faits, 6000), pieces: tronquer(S.pieces, 2000), position: tronquer(S.position, 2000),
     affaire: S.affaire || null,
     plaidoiries: S.log.filter(l => l.kind === "user").map(l => tronquer(l.text, 4000)),
@@ -961,6 +1006,11 @@ async function enregistrerAudience(verdict, pct) {
     rounds: S.results.map(r => ({ nom: r.name, score: r.score, reussites: r.ok, failles: r.ko })),
     verdict: { texte: tronquer(verdict.text, 4000), issue: verdict.issue || "" }, pertinence: pct,
   };
+  return enregistrerFiche(fiche);
+}
+
+// Audiences et questions vont au même endroit ; renvoie "partage" si la fiche a quitté l'appareil.
+async function enregistrerFiche(fiche) {
   try { const l = JSON.parse(localStorage.getItem("cour-audiences") || "[]"); l.unshift(fiche); localStorage.setItem("cour-audiences", JSON.stringify(l.slice(0, 20))); } catch { /* stockage indisponible */ }
   try {
     if (IA.mode === "sample") {
@@ -1078,7 +1128,7 @@ function erreurIA(e, relancer) {
 /* ============================================================
    AUDIENCE IA
    ============================================================ */
-// opts : { parcours: "ia", demande, precision } ou { parcours: "moncas", faits, pieces, position }.
+// opts : { parcours: "moncas", faits, pieces, position }.
 async function startIA(opts) {
   const st = document.getElementById("startStatus");
   const btn = document.getElementById("go");
@@ -1086,28 +1136,21 @@ async function startIA(opts) {
   try { await chargerBase(); } catch { st.className = "status err"; st.textContent = "La base des codes n'a pas pu être chargée."; btn.disabled = false; return; }
   const cote = REGLAGES.cote === "hasard" ? hasard(["defense", "demande"]) : REGLAGES.cote;
   S = { ia: true, level: REGLAGES.level, matiere: REGLAGES.matiere, cote, enregistrer: REGLAGES.enregistrer, round: 0, log: [], results: [], busy: false,
-    parcours: opts.parcours, demande: opts.demande || "", precision: opts.precision || "", faits: opts.faits || "", pieces: opts.pieces || "", position: opts.position || "",
+    parcours: opts.parcours, faits: opts.faits || "", pieces: opts.pieces || "", position: opts.position || "",
     c: { title: "Affaire en cours de préparation", court: "—", object: "—", you: cote === "defense" ? "Défense" : "Demande", pieces: [] } };
   ouvrirSalle(); renderDossier();
-  say("clerk", "Greffier", S.parcours === "moncas" ? "Le greffe met en forme le dossier à partir de vos faits…" : "Le greffe prépare un dossier inédit à partir des textes en vigueur…");
+  say("clerk", "Greffier", "Le greffe met en forme le dossier à partir de vos faits…");
   preparerAffaire();
 }
 
-// Consigne de création de l'affaire selon le parcours choisi.
+// Consigne de création du dossier à partir des faits de l'utilisateur.
 function consigneAffaire() {
-  const matiere = S.matiere ? `Matière : ${MATIERES[S.matiere]}.` : "Matière : choisis-la d'après la demande (affaires, civil, pénal, travail, famille, fiscal ou administratif).";
-  if (S.parcours === "moncas") return `Tâche : construis le dossier d'audience à partir de la situation RÉELLE exposée par l'utilisateur. Garde fidèlement ses faits, ses dates, ses montants et ses pièces : ne les contredis pas et n'ajoute que le strict nécessaire pour une audience (noms fictifs des parties, juridiction compétente, éventuelle pièce adverse plausible). Si un élément manque, choisis l'hypothèse la plus vraisemblable et dis-le dans les faits (« selon les éléments fournis… »).
+  const matiere = S.matiere ? `Matière : ${MATIERES[S.matiere]}.` : "Matière : choisis-la d'après les faits (affaires, civil, pénal, travail, famille, fiscal ou administratif).";
+  return `Tâche : construis le dossier d'audience à partir de la situation RÉELLE exposée par l'utilisateur. Garde fidèlement ses faits, ses dates, ses montants et ses pièces : ne les contredis pas et n'ajoute que le strict nécessaire pour une audience (noms fictifs des parties, juridiction compétente, éventuelle pièce adverse plausible). Si un élément manque, choisis l'hypothèse la plus vraisemblable et dis-le dans les faits (« selon les éléments fournis… »).
 ${matiere}
 Faits exposés par l'utilisateur : « ${S.faits} »
 ${S.pieces ? `Pièces dont il dispose : « ${S.pieces} »` : ""}
 ${S.position ? `Ce qu'il demande ou conteste : « ${S.position} »` : ""}`;
-  const graines = { ville: hasard(VILLES), montant: (Math.floor(Math.random() * 40) + 3) * 25000,
-    preuve_forte_pour: hasard(["l'utilisateur", "l'adversaire", "personne de façon décisive"]), faiblesse: hasard(["la procédure", "la preuve", "le fond", "le montant", "la qualification"]) };
-  const demande = S.demande ? `Demande de l'utilisateur : « ${S.demande} »${S.precision ? ` ; précision : « ${S.precision} »` : ""}. Respecte-la : l'affaire doit porter exactement sur ce thème${/hasard/.test(S.precision) ? " (sujet précis à ton choix dans ce domaine)" : ""}.` : "Aucun thème imposé : choisis un sujet original.";
-  return `Tâche : invente une affaire réaliste et ORIGINALE à plaider, en t'appuyant sur les textes de la base.
-${matiere}
-${demande}
-Éléments imposés pour varier les affaires : ville ${graines.ville} ; enjeu de l'ordre de ${graines.montant.toLocaleString("fr-FR")} DH s'il y a un enjeu financier ; les pièces favorisent ${graines.preuve_forte_pour} ; le point faible principal de l'utilisateur porte sur ${graines.faiblesse}.`;
 }
 
 async function preparerAffaire() {
