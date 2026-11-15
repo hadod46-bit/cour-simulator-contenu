@@ -1,12 +1,12 @@
 {
- "version": 1793705744,
- "libelle": "2026-11-03 11:35",
+ "version": 1794745540,
+ "libelle": "2026-11-15 12:25",
  "coquilleMin": 2,
  "fichiers": [
   {
    "chemin": "index.html",
-   "taille": 101378,
-   "sha256": "d54a12c003a9327aeb97b4fa23423093a7659355fda90bd0f23ff941e1293866"
+   "taille": 101782,
+   "sha256": "661a675e9a82784d3729ad9345ac7a9d46117a6ba1ead50772f2e8992014e7fd"
   },
   {
    "chemin": "moteur.js",
@@ -15,28 +15,28 @@
   },
   {
    "chemin": "data/articles-1.js",
-   "taille": 7348636,
-   "sha256": "7689c70f37834a9521001cbfc18671760e43225c2eda80600f80957fb0dad91f"
+   "taille": 7349253,
+   "sha256": "a4681b9b6393b4deb00972318655691c328c5adcc4fa5f93cb7065ac4ba862f6"
   },
   {
    "chemin": "data/articles-2.js",
-   "taille": 2610981,
-   "sha256": "6be2a361971f023fadac4d8dee42331dc7cc8e236cfb272c7cf7683aa1aea536"
+   "taille": 3594837,
+   "sha256": "9691a446f637bb4ff0d125ac72e04705ff531dcc5f8e476fe507cdac8c5f03a3"
   },
   {
    "chemin": "data/cas.js",
    "taille": 423689,
-   "sha256": "9b5c3f944999ee6fd906454506b86eea55c80aef2aba718da522431ade056868"
+   "sha256": "dd63ff62b40cf9347053587019b5b7ae0bba9d09037095f33f3da4684c6d0a10"
   },
   {
    "chemin": "data/codes.js",
-   "taille": 71571,
-   "sha256": "7850c0dd2eb0d137903123a2cab34c7b9fb6e87c87c0c095ae4694261904ebf5"
+   "taille": 78943,
+   "sha256": "191a5e0dd0ffd8b3351dd203ee574fba7263a222bb82116d2e68dba68bd4997a"
   },
   {
    "chemin": "data/jurisprudence.js",
    "taille": 1480175,
-   "sha256": "d42fda8bb45f4f70ca15bada82321f62e59e7eb34613762e9760db56262965f5"
+   "sha256": "4c9841a5cb7a5a615741965268fdb6f2a3b3dd2d410fa26b8c2e7ac6c4c81ecb"
   }
  ]
 }
