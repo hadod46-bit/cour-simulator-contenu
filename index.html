@@ -703,7 +703,7 @@ const ICONES = {
 const PARCOURS = {
   ia: { titre: "Cas pratique IA", sous: "Décrivez l'affaire voulue : l'IA crée le dossier, plaide contre vous et vous juge.", ia: true },
   moncas: { titre: "Simuler mon cas", sous: "Exposez votre propre situation : l'audience s'ouvre sur vos faits.", ia: true },
-  hors: { titre: "Entraînement hors ligne", sous: "70 affaires corrigées dans toutes les matières, dont 10 cas complexes, avec ou sans internet.", ia: false },
+  hors: { titre: "Entraînement hors ligne", sous: "78 affaires corrigées dans toutes les matières, dont 10 cas complexes, avec ou sans internet.", ia: false },
 };
 // Réglages conservés d'un écran à l'autre pendant la visite.
 const REGLAGES = { level: "facile", cote: "defense", matiere: "", filtre: "tous", recherche: "", caseId: null, enregistrer: true };
@@ -734,7 +734,7 @@ function renderAccueil() {
           <span class="carte-icone">${ICONES[k]}</span>
           <strong>${p.titre}</strong>
           <span class="carte-texte">${p.sous}</span>
-          <span class="carte-etat" id="etat-${k}">${p.ia ? "Vérification de l'IA…" : `${CASES.length || 70} affaires`}</span>
+          <span class="carte-etat" id="etat-${k}">${p.ia ? "Vérification de l'IA…" : `${CASES.length || 78} affaires`}</span>
         </button>`).join("")}
       </div>
       <div id="acces"></div>
