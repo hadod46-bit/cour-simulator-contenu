@@ -148,7 +148,7 @@
       ...(!M.decisions.length ? [] : [
         {
           name: "chercher_jurisprudence",
-          description: "Recherche des décisions de justice marocaines : Cour de cassation (résumés en français : titre, principe, solution) et Cour constitutionnelle (textes en arabe). Renvoie jusqu'à 6 décisions {ref, juridiction, chambre, numero, date, titre, principe, sens, articles}. Interroge en français pour la Cour de cassation (ex. « bail commercial éviction indemnité »), en arabe pour la Cour constitutionnelle.",
+          description: "Recherche des décisions de justice marocaines : Cour de cassation (résumés en français issus de JURICAF, et arrêts en arabe du portail de la Cour), Cour constitutionnelle (textes en arabe). Renvoie jusqu'à 6 décisions {ref, juridiction, chambre, numero, date, titre, principe, sens, articles}. Fais toujours deux recherches : une en français (ex. « licenciement faute grave preuve ») et une en arabe (ex. « الطرد التعسفي خطأ جسيم »), car une partie des arrêts n'existe qu'en arabe.",
           inputSchema: { type: "object", properties: { requete: { type: "string", description: "mots-clés juridiques, en français ou en arabe" } }, required: ["requete"] },
           execute: async ({ requete }) => {
             trace(`recherche de jurisprudence « ${String(requete).slice(0, 60)} »`);

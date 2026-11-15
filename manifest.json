@@ -1,17 +1,17 @@
 {
- "version": 1794750685,
- "libelle": "2026-11-15 13:51",
+ "version": 1794751017,
+ "libelle": "2026-11-15 13:56",
  "coquilleMin": 2,
  "fichiers": [
   {
    "chemin": "index.html",
-   "taille": 104899,
-   "sha256": "7b4d75e0e5e96b9e757a86ab55c9aacc94c8c220441e02efe5ab78e3b7632196"
+   "taille": 106918,
+   "sha256": "3b6f06612ef8281ef3950f850e40a757299cbd77cbda40bf861ac601ca7d8b2a"
   },
   {
    "chemin": "moteur.js",
-   "taille": 12097,
-   "sha256": "5d27a517550b884b6016f2df4a481d4c149bd0d06367581e4ce394079f8b7605"
+   "taille": 12200,
+   "sha256": "4ab431022fcf7834733b95156c907b1ad63c540257f154df1a11c17b523d2fe8"
   },
   {
    "chemin": "data/articles-1.js",

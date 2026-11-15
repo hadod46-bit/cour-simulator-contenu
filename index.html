@@ -211,6 +211,9 @@ input[type=range] { accent-color: var(--accent); width: 100%; }
 .res { text-align: left; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; color: var(--ink); display: grid; gap: 4px; }
 .res .ref { font-family: var(--mono); font-size: 12.5px; color: var(--accent); font-weight: 500; }
 .res .ext { font-size: 13.5px; color: var(--muted); }
+.juris { display: grid; gap: 8px; margin-top: 6px; }
+.juris .res span:not(.ref) { font-size: 14px; }
+.juris .res:hover { border-color: var(--accent); }
 .art-full { white-space: pre-wrap; font-size: 15px; line-height: 1.7; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 14px; }
 .drawer.large { width: min(920px, 100%); grid-template-rows: auto auto minmax(0, 1fr); }
 .lecteur-outils { display: grid; gap: 8px; }
@@ -878,9 +881,21 @@ function afficherEchange(fil, e) {
     ${liste("Démarches", r.demarches)}
     ${liste("Pour affiner la réponse, précisez :", r.precisions_utiles)}
     ${r.citations?.length ? `<p class="note">Textes appliqués (cliquez pour les lire) :</p>${puceCitations(r.citations)}` : ""}
-    ${r.hors_base ? `<p class="note">Une partie de la question dépasse les textes disponibles dans la base : vérifiez auprès d'un professionnel.</p>` : ""}`;
+    ${blocJurisprudence(r.jurisprudence)}
+    ${r.hors_base ? `<p class="note">Limite : ${esc((typeof r.hors_base === "string" ? r.hors_base.trim() : "une partie de la question dépasse les textes de la base").replace(/([^.!?])$/, "$1."))} Vérifiez ce point auprès d'un professionnel.</p>` : ""}`;
+  el.querySelectorAll(".juris [data-decision]").forEach(b => b.onclick = () => ouvrirDecision(b.dataset.decision));
   fil.appendChild(el);
   return el;
+}
+
+// Décisions invoquées par l'IA : seules celles retrouvées dans la base sont affichées (jamais de décision inventée).
+function blocJurisprudence(liste) {
+  const vues = new Set();
+  const items = (Array.isArray(liste) ? liste : []).map(j => ({ d: BASE.trouverDecision(j?.ref), apport: j?.apport }))
+    .filter(({ d }) => d && !vues.has(d.ref) && vues.add(d.ref));
+  if (!items.length) return "";
+  return `<p class="note">Jurisprudence appliquée (cliquez pour lire la décision) :</p><div class="juris">${items.map(({ d, apport }) => `
+    <button class="res" data-decision="${esc(d.ref)}"><span class="ref">✓ ${esc(nomDecision(d))}</span>${apport ? `<span>${esc(apport)}</span>` : ""}</button>`).join("")}</div>`;
 }
 
 async function poserQuestion(f, question) {
@@ -899,21 +914,23 @@ async function poserQuestion(f, question) {
   const precedents = QR.fil.slice(-3).map(e => `Question : ${e.question}\nRéponse : ${e.reponse.reponse_courte}`).join("\n\n");
   const prompt = `${cadre()}
 
-Tâche : tu es un juriste marocain. Réponds à la question d'un utilisateur (étudiant, professionnel ou particulier) en t'appuyant UNIQUEMENT sur les textes de la base et, si elle l'éclaire, sur sa jurisprudence.
+Tâche : tu es un juriste marocain. Réponds à la question d'un utilisateur (étudiant, professionnel ou particulier) en t'appuyant UNIQUEMENT sur les textes et la jurisprudence de la base.
 ${REGLAGES.matiere ? `Domaine indiqué : ${MATIERES[REGLAGES.matiere]}.` : ""}
 ${precedents ? `Échanges précédents, pour le contexte :\n${precedents}\n` : ""}
 Question : « ${question} »
 
 Méthode :
 1. Identifie la ou les questions juridiques posées.
-2. Cherche (chercher_articles) et lis (lire_article) les articles applicables ; consulte chercher_jurisprudence si une décision peut éclairer la réponse.
-3. Applique les textes aux éléments fournis par l'utilisateur, sans inventer de faits. Si un élément manque et change la réponse, raisonne par hypothèses (« si…, alors… ») et indique les précisions utiles.
-4. Indique les démarches concrètes (juridiction compétente, délais, pièces à réunir) quand c'est pertinent, uniquement d'après les textes lus.
-5. Si la base ne contient pas le texte nécessaire, dis-le franchement et mets "hors_base" à true, plutôt que de répondre de mémoire.
-Écris en français clair, accessible à un non-juriste, en citant les articles dans le texte (« article 41 du Code du travail »).
+2. Cherche (chercher_articles) et lis (lire_article) les articles applicables.
+3. Cherche TOUJOURS la jurisprudence : au moins deux appels à chercher_jurisprudence, un en français et un en arabe (une partie des arrêts de la Cour de cassation n'existe qu'en arabe). Lis (lire_decision) les décisions qui semblent pertinentes. Retiens celles qui appliquent ou interprètent les mêmes règles, même si les faits diffèrent un peu, et explique ce qu'elles apportent (« la Cour de cassation a jugé que… »).
+4. Applique les textes et la jurisprudence aux éléments fournis par l'utilisateur, sans inventer de faits. Si un élément manque et change la réponse, raisonne par hypothèses (« si…, alors… ») et indique les précisions utiles.
+5. Indique les démarches concrètes (juridiction compétente, délais, pièces à réunir) quand c'est pertinent, uniquement d'après les textes lus.
+6. Si un point précis dépasse la base, résume-le UNE seule fois, en une phrase, dans "hors_base" ; ne le répète pas dans l'explication, et ne commente pas ce que la base ne contient pas : concentre-toi sur ce que les textes permettent de répondre.
+Écris en français clair, accessible à un non-juriste, en citant les articles dans le texte (« article 41 du Code du travail ») et les décisions par leur juridiction et leur date.
 
 Réponds uniquement par ce JSON :
-{"reponse_courte":"la réponse en une ou deux phrases","explication":"150 à 400 mots, paragraphes séparés par une ligne vide","demarches":["…"],"precisions_utiles":["…"],"citations":[{"code":"…","article":"…"}],"hors_base":false}`;
+{"reponse_courte":"la réponse en une ou deux phrases","explication":"150 à 400 mots, paragraphes séparés par une ligne vide","demarches":["…"],"precisions_utiles":["…"],"citations":[{"code":"…","article":"…"}],"jurisprudence":[{"ref":"référence exacte renvoyée par chercher_jurisprudence","apport":"ce que la décision a jugé et en quoi elle éclaire la question, une ou deux phrases"}],"hors_base":"" }
+"jurisprudence" reste une liste vide si aucune décision de la base n'est pertinente ; "hors_base" reste vide si la base suffit.`;
   CTL = new AbortController();
   try {
     const r = await demander(prompt, { trace: t => { att.querySelector(".trace").textContent = "↳ " + t; }, signal: CTL.signal });
@@ -926,7 +943,7 @@ Réponds uniquement par ce JSON :
     ta.value = ""; ta.placeholder = "Une autre question, ou une précision sur la précédente…";
     if (REGLAGES.enregistrer) enregistrerFiche({ cree: new Date().toISOString(), parcours: "question", matiere: REGLAGES.matiere || "",
       question: question.slice(0, 3000), reponse: { courte: String(r.reponse_courte).slice(0, 1000), explication: String(r.explication || "").slice(0, 5000) },
-      citations: (r.citations || []).slice(0, 20), hors_base: !!r.hors_base });
+      citations: (r.citations || []).slice(0, 20), jurisprudence: (r.jurisprudence || []).slice(0, 10), hors_base: r.hors_base || "" });
   } catch (e) {
     att.remove(); fil.lastElementChild.remove();
     if (e?.code !== "cancelled") { st.className = "status err"; st.textContent = messageErreur(e); }
