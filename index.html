@@ -46,6 +46,12 @@ button { font: inherit; cursor: pointer; }
 button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [lang="ar"] { font-family: var(--arabic); font-size: 1.08em; line-height: 1.9; }
 
+.jauge { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.jauge-barre { width: 74px; height: 7px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.jauge-rempli { display: block; height: 100%; background: var(--accent); border-radius: 4px; transition: width .6s ease; }
+.jauge.moyenne .jauge-rempli { background: var(--warn); }
+.jauge.basse .jauge-rempli { background: var(--bad); }
+.jauge.basse .jauge-texte { color: var(--bad); }
 header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 20px; }
 header.top h1 { font-size: 30px; letter-spacing: -.01em; }
@@ -239,6 +245,7 @@ mark { background: var(--brass-soft); color: var(--ink); border-radius: 2px; pad
   <header class="top">
     <h1><button id="logo" class="logo" title="Accueil">Cour <span>Simulator</span></button></h1>
     <div class="top-actions">
+      <span class="jauge" id="jauge" role="meter" aria-label="IA restante aujourd'hui" aria-valuemin="0" aria-valuemax="100" hidden><span class="jauge-barre"><span class="jauge-rempli"></span></span><span class="jauge-texte"></span></span>
       <span class="tag" id="baseStatus">Droit marocain</span>
       <button class="ghost" id="openCodes">Consulter les codes</button>
     </div>
@@ -285,7 +292,7 @@ function chargerBase() {
    en local, le serveur de Cour Simulator (clé API, voir serveur/serveur.js).
    ============================================================ */
 let SAMPLE = null;
-const IA = { mode: null, cle: true, serveurLocal: false, besoinCode: false, restant: null };   // mode : "sample" | "serveur" | null
+const IA = { mode: null, cle: true, serveurLocal: false, besoinCode: false, jauge: null };   // mode : "sample" | "serveur" | null
 const SERVEUR_LOCAL = "http://localhost:8787";
 // Dans l'application Windows, le serveur est en ligne (adresse fournie par l'application) ; sinon même origine.
 const APP = window.COUR_APP || null;
@@ -303,8 +310,8 @@ async function verifierServeur() {
     if (!etat?.pret) return false;
     IA.mode = "serveur"; IA.cle = !!etat.cle;
     IA.besoinCode = !!etat.codeRequis && !etat.codeValide;
-    IA.restant = etat.codeRequis && etat.codeValide ? etat.restant : null;
     IA.nom = etat.nom || "";
+    majJauge(etat.codeRequis && etat.codeValide && typeof etat.jauge === "number" ? etat.jauge : null);
     return IA.cle && !IA.besoinCode;
   } catch { return false; }
 }
@@ -319,6 +326,19 @@ let iaDispo = (async () => {
   }
   return false;
 })();
+
+// Jauge d'utilisation de l'IA (codes bêta) : pourcentage du budget du jour déjà consommé, affiché dans l'en-tête.
+function majJauge(pct) {
+  IA.jauge = pct;
+  const el = document.getElementById("jauge"); if (!el) return;
+  el.hidden = pct == null; if (pct == null) return;
+  const reste = Math.max(0, 100 - pct);
+  el.className = "jauge" + (reste <= 10 ? " basse" : reste <= 30 ? " moyenne" : "");
+  el.title = `Utilisation de l'IA aujourd'hui : ${pct} % (reste ${reste} %). Une question simple consomme peu, une audience complète davantage. La jauge se recharge chaque jour.`;
+  el.setAttribute("aria-valuenow", String(reste));
+  el.querySelector(".jauge-rempli").style.width = reste + "%";
+  el.querySelector(".jauge-texte").textContent = `IA ${reste} %`;
+}
 
 async function demanderServeur(prompt, { trace, signal, json, sansOutils }) {
   let rep;
@@ -338,6 +358,7 @@ async function demanderServeur(prompt, { trace, signal, json, sansOutils }) {
       if (!l.trim()) continue;
       const m = JSON.parse(l);
       if (m.trace) trace?.(m.trace);
+      if (typeof m.jauge === "number") majJauge(m.jauge);
       if (m.erreur) throw m.erreur;
       if ("resultat" in m) return m.resultat;
     }
@@ -431,7 +452,7 @@ const MESSAGES_ERREUR = {
   serveur_injoignable: APP ? "Le serveur de Cour Simulator ne répond pas. Vérifiez votre connexion internet, puis réessayez dans une minute."
     : "Le serveur local ne répond plus. Vérifiez que la fenêtre de demarrer.bat est toujours ouverte.",
   code_invalide: "Votre code d'accès bêta n'est pas reconnu ou a été désactivé. Revenez à l'accueil pour en saisir un autre.",
-  quota: "Vous avez atteint votre quota d'utilisation de l'IA pour aujourd'hui. Il se renouvelle demain ; la démo et les codes restent disponibles.",
+  quota: "Votre jauge d'IA est vide pour aujourd'hui. Elle se recharge demain ; l'entraînement hors ligne et les codes restent disponibles.",
 };
 const messageErreur = e => MESSAGES_ERREUR[e?.code] || "Claude n'a pas pu répondre (problème de connexion). Réessayez.";
 
@@ -743,7 +764,7 @@ function renderAccueil() {
   iaDispo.then(ok => {
     for (const k of ["question", "moncas"]) {
       const carte = app.querySelector(`[data-parcours="${k}"]`), etat = app.querySelector(`#etat-${k}`); if (!carte) continue;
-      if (ok) etat.textContent = IA.restant != null ? `${IA.restant} appel${IA.restant > 1 ? "s" : ""} IA restant${IA.restant > 1 ? "s" : ""} aujourd'hui` : "IA disponible";
+      if (ok) etat.textContent = IA.jauge != null ? `IA disponible · ${Math.max(0, 100 - IA.jauge)} % restant aujourd'hui` : "IA disponible";
       else { carte.disabled = true; etat.textContent = raisonSansIA(); }
     }
     const acces = app.querySelector("#acces"); if (!acces || ok) return;
