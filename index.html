@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
-<title>Cour Simulator</title>
+<title>Court Simulator</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Naskh+Arabic:wght@400;600&display=swap">
@@ -246,7 +246,7 @@ mark { background: var(--brass-soft); color: var(--ink); border-radius: 2px; pad
 
 <div class="wrap">
   <header class="top">
-    <h1><button id="logo" class="logo" title="Accueil">Cour <span>Simulator</span></button></h1>
+    <h1><button id="logo" class="logo" title="Accueil">Court <span>Simulator</span></button></h1>
     <div class="top-actions">
       <span class="jauge" id="jauge" role="meter" aria-label="IA restante aujourd'hui" aria-valuemin="0" aria-valuemax="100" hidden><span class="jauge-barre"><span class="jauge-rempli"></span></span><span class="jauge-texte"></span></span>
       <span class="tag" id="baseStatus">Droit marocain</span>
@@ -292,7 +292,7 @@ function chargerBase() {
 /* ============================================================
    APPELS À CLAUDE
    Deux chemins : dans claude.ai, la capacité « sample » (compte Claude du joueur) ;
-   en local, le serveur de Cour Simulator (clé API, voir serveur/serveur.js).
+   en local, le serveur de Court Simulator (clé API, voir serveur/serveur.js).
    ============================================================ */
 let SAMPLE = null;
 const IA = { mode: null, cle: true, serveurLocal: false, besoinCode: false, jauge: null };   // mode : "sample" | "serveur" | null
@@ -388,7 +388,7 @@ const MATIERES = {
 };
 const hasard = t => t[Math.floor(Math.random() * t.length)];
 
-const CADRE = `Tu animes « Cour Simulator », un entraînement à la plaidoirie en droit marocain. Base de textes disponible via les outils (clés des codes principaux) :
+const CADRE = `Tu animes « Court Simulator », un entraînement à la plaidoirie en droit marocain. Base de textes disponible via les outils (clés des codes principaux) :
 {CATALOGUE}
 
 Règles absolues :
@@ -452,7 +452,7 @@ const MESSAGES_ERREUR = {
   cle_invalide: "La clé API est refusée par Anthropic. Vérifiez la clé copiée dans le fichier .env.",
   credit: "Le compte API n'a plus de crédit. Ajoutez du crédit sur console.anthropic.com (Billing).",
   connexion: "Le serveur local n'arrive pas à joindre Anthropic. Vérifiez votre connexion internet.",
-  serveur_injoignable: APP ? "Le serveur de Cour Simulator ne répond pas. Vérifiez votre connexion internet, puis réessayez dans une minute."
+  serveur_injoignable: APP ? "Le serveur de Court Simulator ne répond pas. Vérifiez votre connexion internet, puis réessayez dans une minute."
     : "Le serveur local ne répond plus. Vérifiez que la fenêtre de demarrer.bat est toujours ouverte.",
   code_invalide: "Votre code d'accès bêta n'est pas reconnu ou a été désactivé. Revenez à l'accueil pour en saisir un autre.",
   quota: "Votre jauge d'IA est vide pour aujourd'hui. Elle se recharge demain ; l'entraînement hors ligne et les codes restent disponibles.",
@@ -737,7 +737,7 @@ function renderIntro() { stopTimer(); CTL?.abort(); renderAccueil(); }
 function raisonSansIA() {
   if (IA.besoinCode) return IA.code ? "Code bêta refusé : saisissez un code valide ci-dessous." : "Saisissez votre code d'accès bêta ci-dessous pour activer l'IA.";
   if (IA.mode === "serveur" && !IA.cle) return APP ? "Le serveur n'est pas encore prêt (clé API manquante côté serveur)." : "Serveur local sans clé API : ajoutez-la dans le fichier .env puis relancez.";
-  if (APP) return "Le serveur de Cour Simulator ne répond pas : vérifiez votre connexion internet.";
+  if (APP) return "Le serveur de Court Simulator ne répond pas : vérifiez votre connexion internet.";
   if (/Android/.test(navigator.userAgent) && location.protocol === "file:") return "Pas encore disponible dans l'application mobile.";
   if (location.protocol === "file:") return IA.serveurLocal ? "Le serveur local tourne : ouvrez la page par lui (bouton ci-dessous)." : "Fichier ouvert directement : lancez demarrer.bat pour activer l'IA.";
   return "Ouvrez la page dans Claude, ou lancez demarrer.bat pour l'utiliser en local.";
@@ -810,7 +810,7 @@ const choixMatiere = (titre, avecToutes) => `
   </div>`;
 const caseEnregistrer = () => `
   <label class="consentement"><input type="checkbox" id="enregistrer" ${REGLAGES.enregistrer ? "checked" : ""}>
-    <span>Enregistrer cette audience (affaire, arguments, notes) pour améliorer Cour Simulator. N'indiquez pas de vrais noms ni de données personnelles.</span></label>`;
+    <span>Enregistrer cette audience (affaire, arguments, notes) pour améliorer Court Simulator. N'indiquez pas de vrais noms ni de données personnelles.</span></label>`;
 
 function brancherReglages(racine) {
   const pick = (attr, val) => racine.querySelectorAll(`[data-${attr}]`).forEach(x => x.setAttribute("aria-pressed", x.dataset[attr] === val));
@@ -853,7 +853,7 @@ function formQuestion(f) {
     </div>
     ${choixMatiere("Domaine (facultatif)", true)}
     <label class="consentement"><input type="checkbox" id="enregistrer" ${REGLAGES.enregistrer ? "checked" : ""}>
-      <span>Enregistrer mes questions et les réponses pour améliorer Cour Simulator. N'indiquez pas de vrais noms ni de données personnelles.</span></label>
+      <span>Enregistrer mes questions et les réponses pour améliorer Court Simulator. N'indiquez pas de vrais noms ni de données personnelles.</span></label>
     <div class="actions"><button class="primary" id="go" disabled>Poser la question</button><span class="status" id="startStatus"></span></div>
     <p class="disclaimer">Réponse indicative fondée sur les textes de la base, pas un avis juridique : pour une affaire réelle, consultez un avocat.</p>`;
   brancherReglages(f);
@@ -1341,7 +1341,7 @@ Réponds uniquement par ce JSON :
     renderBoard(pct, verdict);
     sauvegarde?.then(ou => {
       const el = document.getElementById("sauvegarde"); if (!el) return;
-      el.textContent = ou === "partage" ? "Audience enregistrée dans la base d'étude de Cour Simulator." : "Audience enregistrée sur cet appareil.";
+      el.textContent = ou === "partage" ? "Audience enregistrée dans la base d'étude de Court Simulator." : "Audience enregistrée sur cet appareil.";
     });
   } catch (e) { a.fin(); if (e?.code !== "cancelled") erreurIA(e, verdictIA); }
 }

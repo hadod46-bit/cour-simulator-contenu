@@ -1,4 +1,4 @@
-/* Moteur de la base juridique de Cour Simulator, partagé par la page (navigateur) et le serveur local (Node).
+/* Moteur de la base juridique de Court Simulator, partagé par la page (navigateur) et le serveur local (Node).
    - charge les données de data/ (catalogue + articles) et construit un index BM25 bilingue (FR + AR) ;
    - recherche, lecture d'un article, catalogue des codes ;
    - définit les deux outils donnés à Claude : chercher_articles et lire_article. */
