@@ -1,12 +1,12 @@
 {
- "version": 1795529579,
- "libelle": "2026-11-24 14:12",
+ "version": 1795531707,
+ "libelle": "2026-11-24 14:48",
  "coquilleMin": 2,
  "fichiers": [
   {
    "chemin": "index.html",
-   "taille": 106927,
-   "sha256": "94bc874178e469586171217d42a53250849d6645b5b5902385ab485568b6e7ed"
+   "taille": 115430,
+   "sha256": "801a0c56b54edbdc86d8c81c87f91b3de229e968d148d9eb78c21d7496bd495b"
   },
   {
    "chemin": "moteur.js",
