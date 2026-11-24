@@ -711,6 +711,32 @@ main > .acc-fin { display: block; padding: 96px 0 0; border-top: 0; margin-inlin
 :root[data-theme="dark"] .acc-methode__grav { --ink: var(--brass); }
 @media (max-width: 900px) { .acc-methode { grid-template-columns: 1fr; gap: 28px; padding-top: 64px; } }
 
+/* Le haut de page : bandeau brun très foncé, l'étoile à 8 branches au-dessus de la balance gravée en plaque d'or (reflet lent) */
+main > .acc-hero { --bg: #16110d; --panel: #1f1813; --surface: #2a211a; --ink: #f3ebdf; --body: #dccfbe; --muted: #b5a695; --line: #3a2e25; --line-strong: #5a4a3c;
+  --accent: #d4ad62; --accent-hover: #e3c27e; --accent-soft: #33281a; --brass: #d4ad62; --ring: rgba(212, 173, 98, .3);
+  margin: -28px calc(50% - 50vw) 0; padding: 64px max(16px, calc((100vw - 1200px) / 2 + 20px)) 80px; min-height: min(840px, calc(100svh - 64px));
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 64px; align-items: center; color: var(--body);
+  background: radial-gradient(55% 65% at 76% 45%, rgba(212, 173, 98, .12), transparent 70%), #16110d; }
+main > .acc-hero .acc-hero__texte { padding-top: 0; }
+main > .acc-hero .acc-lead { color: var(--muted); }
+.acc-embleme { display: grid; gap: 20px; justify-items: center; width: 100%; }
+.acc-embleme__cimier { display: flex; align-items: center; gap: 18px; width: 72%; color: var(--brass); }
+.acc-embleme__cimier i { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(212, 173, 98, .65)); }
+.acc-embleme__cimier i:last-child { background: linear-gradient(270deg, transparent, rgba(212, 173, 98, .65)); }
+.acc-etoile { width: 58px; height: 58px; flex: none; }
+.acc-embleme__grav { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: var(--r-xl); overflow: hidden; background: #16110d;
+  --ink: var(--brass); --surface: #16110d; box-shadow: 0 0 0 1px rgba(212, 173, 98, .22), 0 40px 90px -40px rgba(0, 0, 0, .8); }
+.acc-embleme__grav img, .acc-embleme__grav canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* La méthode : le texte à gauche, la vraie fenêtre de l'application à droite (avec la carte « Vérification ») */
+main > .acc-methode { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; }
+main > .acc-methode .acc-art { height: 600px; }
+@media (max-width: 1100px) { main > .acc-hero { grid-template-columns: 1fr; gap: 40px; min-height: 0; } main > .acc-methode { grid-template-columns: 1fr; } main > .acc-methode .acc-art { height: 520px; } }
+@media (max-width: 640px) {
+  main > .acc-hero { margin-top: -20px; padding-top: 32px; padding-bottom: 48px; gap: 28px; }
+  .acc-etoile { width: 44px; height: 44px; }
+  main > .acc-methode .acc-art { height: 300px; }
+}
+
 /* --- Tablette et téléphone --- */
 @media (max-width: 900px) {
   .court { grid-template-columns: 1fr; }
@@ -1737,6 +1763,27 @@ function renderAccueil() {
         </div>
         <p class="acc-preuve"><span data-chiffre="textes">${fr(n.textes)}</span> textes · <span data-chiffre="articles">${fr(n.articles)}</span> articles · <span data-chiffre="decisions">${fr(n.decisions)}</span> décisions · français et <span lang="ar">العربية</span></p>
       </div>
+      <div class="acc-embleme">
+        <div class="acc-embleme__cimier" aria-hidden="true"><i></i><svg class="acc-etoile" viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="22" y="22" width="56" height="56"/><rect x="22" y="22" width="56" height="56" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="12.5"/></g><circle cx="50" cy="50" r="4" fill="currentColor"/></svg><i></i></div>
+        <div class="acc-embleme__grav" data-eng='{"pitch":4,"colour":0,"clarity":0.5,"exposure":-0.85,"contrast":0.6,"ground":0,"light":0.55,"speed":0.5}'>${window.ACC_IMG?.balance ? `<img src="${ACC_IMG.balance}" alt="Balance ancienne en laiton, gravée en plaque dorée">` : ""}</div>
+      </div>
+    </section>
+
+    <div class="acc-sources" aria-label="Sources">
+      <p class="eyebrow">Sources officielles</p>
+      <ul><li>adala.justice.gov.ma</li><li>tax.gov.ma</li><li>juriscassation.cspj.ma</li><li>JURICAF (AHJUCAF)</li><li>Cour constitutionnelle</li></ul>
+    </div>
+
+    <section class="acc-methode" aria-labelledby="acc-me-h">
+      <div class="acc-methode__texte">
+        <p class="eyebrow">La méthode</p>
+        <h2 class="acc-h2" id="acc-me-h">Chaque article est <em>pesé et vérifié</em></h2>
+        <ol class="acc-methode__etapes">
+          <li><span><b>La recherche.</b> L'IA cherche dans ${fr(n.textes)} textes officiels et ${fr(n.decisions)} décisions, en français et en arabe.</span></li>
+          <li><span><b>La lecture.</b> Elle lit chaque article avant de le citer : aucune réponse de mémoire.</span></li>
+          <li><span><b>La vérification.</b> Chaque citation est retrouvée dans la base. Une citation introuvable s'affiche en pointillés, jamais comme vérifiée.</span></li>
+        </ol>
+      </div>
       <div class="acc-art" role="img" aria-label="Une question sur un licenciement pour faute grave et la réponse de Court Simulator, avec les articles du Code du travail vérifiés et un arrêt de la Cour de cassation">
         <div class="acc-art__fx" data-fx="grain-gradient" data-fx-seed="7" data-fx-params='{"speed":0.35,"calm":0.2,"contrast":0.5,"tint":0.6}' aria-hidden="true"></div>
         <div class="acc-win" aria-hidden="true">
@@ -1760,24 +1807,6 @@ function renderAccueil() {
           <p class="acc-note__ligne" data-etape="3"><i>✓</i><span><b>2 arrêts</b> de la Cour de cassation liés</span></p>
         </div>
         <button class="acc-pause" type="button" aria-label="Mettre en pause l'animation de vérification" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 3v6M8 3v6"/></svg></button>
-      </div>
-    </section>
-
-    <div class="acc-sources" aria-label="Sources">
-      <p class="eyebrow">Sources officielles</p>
-      <ul><li>adala.justice.gov.ma</li><li>tax.gov.ma</li><li>juriscassation.cspj.ma</li><li>JURICAF (AHJUCAF)</li><li>Cour constitutionnelle</li></ul>
-    </div>
-
-    <section class="acc-methode" aria-labelledby="acc-me-h">
-      <div class="acc-methode__grav" data-eng='{"pitch":4,"colour":0.35,"clarity":0.35}' data-eng-sombre='{"pitch":4,"colour":0,"clarity":0.5,"exposure":-0.85,"contrast":0.6,"ground":0}'>${window.ACC_IMG?.balance ? `<img src="${ACC_IMG.balance}" alt="Balance ancienne en laiton, gravée">` : ""}</div>
-      <div class="acc-methode__texte">
-        <p class="eyebrow">La méthode</p>
-        <h2 class="acc-h2" id="acc-me-h">Chaque article est <em>pesé et vérifié</em></h2>
-        <ol class="acc-methode__etapes">
-          <li><span><b>La recherche.</b> L'IA cherche dans ${fr(n.textes)} textes officiels et ${fr(n.decisions)} décisions, en français et en arabe.</span></li>
-          <li><span><b>La lecture.</b> Elle lit chaque article avant de le citer : aucune réponse de mémoire.</span></li>
-          <li><span><b>La vérification.</b> Chaque citation est retrouvée dans la base. Une citation introuvable s'affiche en pointillés, jamais comme vérifiée.</span></li>
-        </ol>
       </div>
     </section>
 
